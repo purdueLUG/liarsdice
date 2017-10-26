@@ -5,27 +5,36 @@ import asyncio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 
 # gameboard dict contents:
-#   player_list   : list(string)             = list of fellow bot names
-#   stash_sizes   : dict(string: int)        = dict of bot names and their number of dice
-#   player_id     : string                   = name of the bot whose turn it is
-#   challenger_id : string                   = name of challenger bot
-#   previous_bet  : tuple(int, int)          = previous bet in the form (number_dice, dice_type)
-#   stashes       : list(list(int))          = everybody's dice
-#   game_state    : bool                     = whether game is running or not
+#   player_list   : list(string)            = list of fellow bot names
+#   stash_sizes   : dict(string: int)       = dict of bot names and their number of dice.
+#                                             key: player_id
+#                                             value: num_dice
+#   player_id     : string                  = name of the bot whose turn it is
+#   challenger_id : string                  = name of challenger bot
+#   previous_bet  : dict(string: int)       = previous bet in a dict of the form:
+#                                             'num_dice: int' and 'value: int'
+#   stashes       : dict(string: list(int)) = everybody's dice
+#   game_state    : bool                    = whether game is running or not
 
 class MyComponent(ApplicationSession):
     async def onJoin(self, details):
         # bet-making function
-        def bet(my_roll, gameboard):
+        def bet(stash, gameboard):
             # update stored game board state
             self.gameboard = gameboard
+            print(self.gameboard)
+            print(stash)
             dice_type = int(input("bet dice type: "))
             num_dice = int(input("bet number of dice: "))
-            print("made bet: {} {}s".format(num_dice, dice_type)
+            print("made bet: {} {}s".format(num_dice, dice_type))
             return (num_dice, dice_type)
 
         # challenge-making function
-        def challenge(msg):
+        def challenge(stash, gameboard):
+            # update stored game board state
+            self.gameboard = gameboard
+            print(self.gameboard)
+            print(stash)
             response = input("make challenge? Y/n: ")
             if response == "Y" or response == "y" or response == "":
                 print("bet challenged!")
@@ -45,8 +54,8 @@ class MyComponent(ApplicationSession):
         # uncomment if you want continuous game board updates
         def store_gameboard(gameboard):
             self.gameboard = gameboard
-            print("Got gameboard: {}".format(msg))
-        await self.subscribe(store_gameboard, 'server.board')
+            print("Got gameboard: {}".format(gameboard))
+        await self.subscribe(store_gameboard, 'server.gameboard')
 
 
 if __name__ == "__main__":
