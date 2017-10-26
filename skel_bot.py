@@ -24,10 +24,10 @@ class MyComponent(ApplicationSession):
             self.gameboard = gameboard
             print(self.gameboard)
             print(stash)
-            dice_type = int(input("bet dice type: "))
-            num_dice = int(input("bet number of dice: "))
-            print("made bet: {} {}s".format(num_dice, dice_type))
-            return (num_dice, dice_type)
+            num_dice = int(input("number of dice to bet: "))
+            value = int(input("value of dice to bet: "))
+            print("made bet: {} {}s".format(num_dice, value))
+            return {'num_dice': num_dice, 'value': value}
 
         # challenge-making function
         def challenge(stash, gameboard):
