@@ -29,10 +29,10 @@ class MyComponent(ApplicationSession):
             response = input("make challenge? Y/n: ")
             if response == "Y" or response == "y" or response == "":
                 print("bet challenged!")
-                return true
+                return True
             elif response == "n" or response == "N":
                 print("no challenge made")
-                return false
+                return False
 
         # call register function so server knows about me
         await self.call('server.register', bot_name)
