@@ -5,11 +5,11 @@ import asyncio
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 
 # gameboard dict contents:
-#   num_players   : int                      = number of total bots
-#   stash_sizes   : list(int)                = list of how many dice every bot has
-#   player_id     : string                   = name of the bot whose term it is
+#   player_list   : list(string)             = list of fellow bot names
+#   stash_sizes   : dict(string: int)        = dict of bot names and their number of dice
+#   player_id     : string                   = name of the bot whose turn it is
 #   challenger_id : string                   = name of challenger bot
-#   previous_bet  : tuple(number, dice_type) = previous bet
+#   previous_bet  : tuple(int, int)          = previous bet in the form (number_dice, dice_type)
 #   stashes       : list(list(int))          = everybody's dice
 #   game_state    : bool                     = whether game is running or not
 
