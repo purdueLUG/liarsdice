@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+import argparse
 import asyncio
+import time
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 
 # gameboard dict contents:
@@ -59,7 +61,10 @@ class MyComponent(ApplicationSession):
 
 
 if __name__ == "__main__":
-    server_ip = input("server ip: ")
-    bot_name = input("bot name: ")
-    runner = ApplicationRunner('ws://{}:8080/ws'.format(server_ip), 'realm1')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("server_ip", help="IP address of the WAMP server")
+    parser.add_argument("player_id", help="Player's unique nickname")
+    args = parser.parse_args()
+    bot_name = args.player_id
+    runner = ApplicationRunner('ws://{}:8080/ws'.format(args.server_ip), 'realm1')
     runner.run(MyComponent)
