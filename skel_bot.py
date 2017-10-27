@@ -36,10 +36,10 @@ class MyComponent(ApplicationSession):
             print(self.gameboard)
             print(stash)
             response = input("make challenge? Y/n: ")
-            if response == "Y" or response == "y" or response == "":
+            if response in ['Y', 'y', '']:
                 print("bet challenged!")
                 return True
-            elif response == "n" or response == "N":
+            elif response in ['N', 'n']:
                 print("no challenge made")
                 return False
 
