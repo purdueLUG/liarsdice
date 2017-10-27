@@ -5,6 +5,7 @@ import argparse
 import asyncio
 import time
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
+from autobahn.wamp.exception import ApplicationError
 
 # gameboard dict contents:
 #   player_list   : list(string)            = list of fellow bot names
@@ -46,7 +47,17 @@ class MyComponent(ApplicationSession):
                 return False
 
         # call register function so server knows about me
-        await self.call('server.register', bot_name)
+        registered = False
+        print("Waiting for server response...", end='', flush=True)
+        while not registered:
+            try:
+                await self.call('server.register', bot_name)
+                registered = True
+            except(ApplicationError):
+                time.sleep(1)
+                print('.', end='', flush=True)
+        print('done')
+
         # register my bet and challenge functions with the server
         await self.register(bet, bot_name + '.bet')
         await self.register(challenge, bot_name + '.challenge')
