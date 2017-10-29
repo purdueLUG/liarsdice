@@ -25,8 +25,8 @@ class MyComponent(ApplicationSession):
         def bet(stash, gameboard):
             # update stored game board state
             self.gameboard = gameboard
-            print(self.gameboard)
-            print(stash)
+            print("{}'s bet: {}".format(gameboard['player_id'], gameboard['previous_bet']))
+            print("{}'s stash: {}".format(bot_name, stash))
             num_dice = int(input("number of dice to bet: "))
             value = int(input("value of dice to bet: "))
             print("made bet: {} {}s".format(num_dice, value))
@@ -36,8 +36,8 @@ class MyComponent(ApplicationSession):
         def challenge(stash, gameboard):
             # update stored game board state
             self.gameboard = gameboard
-            print(self.gameboard)
-            print(stash)
+            print("{}'s bet: {}".format(gameboard['player_id'], gameboard['previous_bet']))
+            print("{}'s stash: {}".format(bot_name, stash))
             response = input("make challenge? Y/n: ")
             if response in ['Y', 'y', '']:
                 print("bet challenged!")
@@ -67,7 +67,7 @@ class MyComponent(ApplicationSession):
         # uncomment if you want continuous game board updates
         def store_gameboard(gameboard):
             self.gameboard = gameboard
-            print("Got gameboard: {}".format(gameboard))
+            #print("Got gameboard: {}".format(gameboard))
         await self.subscribe(store_gameboard, 'server.gameboard')
 
 
