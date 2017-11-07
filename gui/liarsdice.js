@@ -1,16 +1,15 @@
 // Liar's Dice GUI WAMP Endpoint
 // Evan Widloski - 2017-10-26
 
-// if (document.location.origin === "null" || document.location.origin === "file://") {
-//     wsuri = "ws://127.0.0.1:8080/ws";
-// }
-// else {
-//     wsuri = (document.location.protocol === "http:" ? "ws:" : "wss:") + "//" +
-//         document.location.host + "/ws";
-// }
+if (document.location.origin === "null" || document.location.origin === "file://") {
+    wsuri = "ws://127.0.0.1:8080/ws";
+}
+else {
+    wsuri = (document.location.protocol === "http:" ? "ws:" : "wss:") + "//" +
+        document.location.hostname + ":8080/ws";
+}
 
-var wsuri = "ws://10.186.81.49:8080/ws";
-
+wsuri = "ws://192.168.1.145:8080/ws";
 // the WAMP connection to the Router
 var connection = new autobahn.Connection({
     url: wsuri,
@@ -49,26 +48,47 @@ function alert_error(text) {
 
 // subscribe to gameboard updates
 function subscribe_gameboard(gb) {
-    console.log("received event for gameboard");
+    // console.log("received event for gameboard");
     gameboard = gb[0];
     $("#dump").html(JSON.stringify(gameboard, null, '\t'));
     var table = $("#gameboard");
-    $("#gameboard tr").remove()
-    $("#gameboard td").remove()
-    // var stashes = {"db1": [1,1,1,1]}
+    $("#gameboard tbody tr").remove()
+    $("#gameboard tbody td").remove()
 
     gameboard.player_list.forEach(function (player_id, index) {
-        console.log(player_id);
-        if (player_id == gameboard['player_id']){
+        if (player_id == gameboard.winner) {
+            tr_class = "success";
+        }
+        else if (player_id == gameboard['player_id']){
             tr_class = "active";
+        }
+        else if (gameboard.active_players[player_id] == false) {
+            tr_class = "danger";
         }
         else {
             tr_class = "";
         }
+
+        // if stash for a certain player is known, show their stash
+        console.log(player_id)
+        if(gameboard.stashes[player_id]){
+            dice_html = "<td>"
+            gameboard.stashes[player_id].forEach(function (dice){
+                dice_html += "<img class=\"dice\" src=/dice/" + dice + ".png>"
+            });
+            dice_html += "</td>"
+        }
+        // otherwise, fill in with grey boxes
+        else {
+            dice_html = "<td>" +
+                "<img class=\"dice\" src=/dice/unknown.png>".repeat(gameboard.stash_sizes[player_id]) +
+                "</td>";
+        }
         $('#gameboard tbody').append(['<tr class="', tr_class, '">',
                                       '<td>', index, '</td>',
                                       '<td>', player_id, '</td>',
-                                      '<td><img src=/dice/', 1, '.png></td>',
+                                      dice_html,
+                                      '<td>', gameboard.wins[player_id], '</td>',
                                       '</tr>'].join(''));
     });
 }
@@ -84,6 +104,16 @@ function subscription_success(subscription) {
 // subscribe failure callback
 function subscription_fail(err) {
     console.log('failed to subscribe to topic', err);
+}
+
+// receive messages to display in gui log
+function subscribe_console(message) {
+    log = $('#log');
+    autoscroll = log.scrollTop() + log.height() >= log[0].scrollHeight - 10;
+    log.val(log.val() + '\n' + message);
+    if (autoscroll) {
+        log.scrollTop(log[0].scrollHeight - log.height());
+    }
 }
 
 
@@ -103,6 +133,9 @@ connection.onopen = function (s, details) {
     // );
     session.subscribe('server.gameboard', subscribe_gameboard).then(
         subscription_success, subscription_fail
+    );
+    session.subscribe('server.console', subscribe_console).then(
+        get_success_callback(), subscription_fail
     );
 
 };

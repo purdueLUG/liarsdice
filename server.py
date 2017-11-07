@@ -1,8 +1,13 @@
 from twisted.internet.defer import inlineCallbacks
+from twisted.internet import reactor
+from twisted.protocols.basic import LineOnlyReceiver
+from twisted.internet.stdio import StandardIO
+from twisted.internet import defer
 
 from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession
 from autobahn.wamp.exception import ApplicationError
+from autobahn.wamp.types import RegisterOptions
 
 from random import randint
 from itertools import cycle
@@ -55,6 +60,26 @@ class PlayerList(list):
             pool += p.stash
         return pool
 
+class AlreadyWaiting(Exception):
+    pass
+
+class PromptProtocol(LineOnlyReceiver):
+
+    def __init__(self):
+        self.callback = False
+
+    def prompt(self, prompt: str):
+        if self.callback:
+            raise AlreadyWaiting
+        self.transport.write((prompt + ' ').encode('utf-8'))
+        self.callback = defer.Deferred()
+        return self.callback
+
+    def lineReceived(self, line: bytes):
+        print("line received")
+        response = line.decode('utf-8')
+        self.callback(response)
+
 class AppSession(ApplicationSession):
     players  = PlayerList()
     prev_bet = {'num_dice': 0, 'value': 0}
@@ -75,7 +100,7 @@ class AppSession(ApplicationSession):
             'player_id'     : self.current_player.player_id,
             'challenger_id' : self.next_player.player_id,
             'previous_bet'  : self.prev_bet,
-            'stashes'       : stashes,
+            'stashes'       : {"foo":[1,2,3,4,5], "foo2":[5,4,3,2,1]},
             'game_state'    : 'setup'
         }
         return gameboard
@@ -87,21 +112,26 @@ class AppSession(ApplicationSession):
 
     @inlineCallbacks
     def onJoin(self, details):
+        proto = PromptProtocol()
+        StandardIO(proto, reactor=reactor)
 
         # register remote procedure call named reg
-        def reg(ID):
+        def reg(ID, session_details):
+            print("got session_details:", session_details)
             self.players += [Player(ID, 5)]
             print("reg() called with {}".format(ID))
             self.publish_gameboard()
             return True
 
-        yield self.register(reg, 'server.register')
+        yield self.register(reg, 'server.register', options=RegisterOptions(details_arg='session_details'))
         print("procedure reg() registered")
 
 
         # setup phase
-        print("Ten seconds to register...")
-        yield sleep(10)
+        # print("Ten seconds to register...")
+        # yield sleep(10)
+        yield proto.prompt('press enter to start')
+        print("Starting")
 
         while len(self.players) > 1:
             # roll all dice
@@ -196,4 +226,4 @@ class AppSession(ApplicationSession):
 from autobahn.twisted.wamp import ApplicationRunner
 if __name__ == '__main__':
     r = ApplicationRunner(url=u'ws://localhost:8080/ws', realm=u'realm1')
-    r.run(AppSession, auto_reconnect=True)
+    r.run(AppSession, auto_reconnect=True, start_reactor=True)

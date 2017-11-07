@@ -12,30 +12,33 @@
 
         <script src="/libs/bootstrap/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     </head>
-    <body>
-        <!-- <div id="gameboard" ></div> -->
-        <!-- <div id="connected" > -->
-        <!-- <span id="connection_false" class="fa fa-times" style="display:none"></span> -->
-        <!-- <span id="connection_true" class="fa fa-check" style="display:none"></span> -->
-        <!-- </div> -->
+    <!-- <body style="white-space: pre;"> -->
+    <body style="margin: 20px">
         <table id="gameboard" class="table">
-        <thead>
-            <tr>
-            <th>#</th>
-            <th>Player ID</th>
-            <th></th>
-            <th>Number Dice</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr class="active">
-            <th>1</th>
-            <td>Mark</td>
-            <td>Otto</td>
-            <td>@mdo</td>
-            </tr>
-        </tbody>
+            <thead>
+                <tr>
+                <th>#</th>
+                <th>Player ID</th>
+                <th>Dice</th>
+                <th>Wins</th>
+                </tr>
+            </thead>
+            <tbody>
+            </tbody>
         </table>
-        <div id="dump"></div>
+        <div class="row">
+            <div class="col-sm-6">
+                <textarea id="log" readonly style="width: 90%; max-height: 300px;">
+                </textarea>
+            </div>
+            <div class="col-sm-6">
+                <p style="white-space:pre;" id="dump"></p>
+            </div>
+        </div>
+        <div class="row">
+            <div style="width:600px; margin:auto">
+                <img src="/dice/dice.gif">
+            </div>
+        </div>
     </body>
 </html>
