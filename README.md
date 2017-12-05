@@ -33,6 +33,22 @@ the IP address of the WAMP server and the bot's nickname:
 	
 	optional arguments:
 	  -h, --help  show this help message and exit
+      
+## arguments example
+- stash
+    [1,1,2,2,3,4]
+- gameboard
+    { "player_list": [ "evan", "d" ],
+      "winner": "", 
+      "previous_bet": { "num_dice": 4, "value": 4 }, 
+      "active_players": { "evan": true, "d": true }, 
+      "stash_sizes": { "evan": 5, "d": 5 }, 
+      "wins": { "evan": 0, "d": 0 }, 
+      "challenger_id": "evan", "player_id": "d", 
+      "stashes": { "evan": [ 2, 3, 4, 5, 2 ], "d": [ 5, 5, 4, 4, 6 ] } 
+    } 
+    
+Note that stashes is only available after a round has ended.
 
 
 
