@@ -6,6 +6,8 @@ import asyncio
 import time
 from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 from autobahn.wamp.exception import ApplicationError
+import importlib
+import logic
 
 # gameboard dict contents:
 #   player_list   : list(string)            = list of fellow bot names
@@ -21,30 +23,14 @@ from autobahn.wamp.exception import ApplicationError
 
 class MyComponent(ApplicationSession):
     async def onJoin(self, details):
-        # bet-making function
-        def bet(stash, gameboard):
-            # update stored game board state
-            self.gameboard = gameboard
-            print("{}'s bet: {}".format(gameboard['player_id'], gameboard['previous_bet']))
-            print("{}'s stash: {}".format(bot_name, stash))
-            num_dice = int(input("number of dice to bet: "))
-            value = int(input("value of dice to bet: "))
-            print("made bet: {} {}s".format(num_dice, value))
-            return {'num_dice': num_dice, 'value': value}
 
-        # challenge-making function
-        def challenge(stash, gameboard):
-            # update stored game board state
-            self.gameboard = gameboard
-            print("{}'s bet: {}".format(gameboard['player_id'], gameboard['previous_bet']))
-            print("{}'s stash: {}".format(bot_name, stash))
-            response = input("make challenge? Y/n: ")
-            if response in ['Y', 'y', '']:
-                print("bet challenged!")
-                return True
-            elif response in ['N', 'n']:
-                print("no challenge made")
-                return False
+        def _bet(stash, gameboard):
+            importlib.reload(logic)
+            return logic.bet(stash, gameboard)
+
+        def _challenge(stash, gameboard):
+            importlib.reload(logic)
+            return logic.challenge(stash, gameboard)
 
         # call register function so server knows about me
         registered = False
@@ -59,8 +45,8 @@ class MyComponent(ApplicationSession):
         print('done')
 
         # register my bet and challenge functions with the server
-        await self.register(bet, bot_name + '.bet')
-        await self.register(challenge, bot_name + '.challenge')
+        await self.register(_bet, bot_name + '.bet')
+        await self.register(_challenge, bot_name + '.challenge')
         print("registered self with server")
 
         # game board subscription

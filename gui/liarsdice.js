@@ -9,7 +9,6 @@ else {
         document.location.hostname + ":8080/ws";
 }
 
-wsuri = "ws://192.168.1.145:8080/ws";
 // the WAMP connection to the Router
 var connection = new autobahn.Connection({
     url: wsuri,
@@ -59,7 +58,7 @@ function subscribe_gameboard(gb) {
         if (player_id == gameboard.winner) {
             tr_class = "success";
         }
-        else if (player_id == gameboard['player_id']){
+        else if (player_id == gameboard['challenger_id']){
             tr_class = "active";
         }
         else if (gameboard.active_players[player_id] == false) {

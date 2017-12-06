@@ -89,6 +89,7 @@ class AppSession(ApplicationSession):
     prev_bet         = {'num_dice': 0, 'value': 0}
     current_player   = Player('', 0)
     next_player      = Player('', 0)
+    server_started = False
 
     def assemble_gameboard(self, reveal_stashes=False, winner=''):
         stashes = {}
@@ -124,26 +125,27 @@ class AppSession(ApplicationSession):
 
         # register remote procedure call named reg
         def reg(ID):
-            self.starting_players += PlayerList([Player(ID, 1)])
-            self.players += PlayerList([Player(ID, 5)])
-            print("reg() called with {}".format(ID))
-            self.publish_gameboard()
-            return True
+            if self.server_started == False:
+                self.starting_players += PlayerList([Player(ID, 1)])
+                self.players += PlayerList([Player(ID, 5)])
+                print("reg() called with {}".format(ID))
+                self.publish_gameboard()
+                return True
 
-        yield self.register(reg, 'server.register', options=RegisterOptions(details_arg='session_details'))
+        yield self.register(reg, 'server.register')
         print("procedure reg() registered")
 
         # setup phase
-        # print("Ten seconds to register...")
-        # yield sleep(10)
-        yield proto.prompt('press enter to start')
+        print("ten seconds to register...")
+        yield sleep(10)
+        # yield proto.prompt('press enter to start')
         print("Starting")
+        self.server_started = True
 
         while True:
             self.players = PlayerList(self.starting_players.copy())
             for p in self.players:
                 p.stash_size = 5
-
 
             while len(self.players) > 1:
                 # roll all dice
@@ -191,7 +193,7 @@ class AppSession(ApplicationSession):
                         except ApplicationError as e:
                             self.players.delete(self.next_player)
 
-                    yield sleep(1)
+                    yield sleep(.5)
                     yield self.publish_gameboard()
 
                 # reveal stashes
@@ -230,7 +232,7 @@ class AppSession(ApplicationSession):
                 # need to reset this for next round
                 self.prev_bet = {'num_dice': 0, 'value': 0}
 
-                yield sleep(5)
+                yield sleep(1)
 
             if len(self.players) <= 0:
                 print("GAME OVER, no players entered :(")
@@ -240,7 +242,8 @@ class AppSession(ApplicationSession):
                 for p in self.starting_players:
                     if p.player_id == self.players[0].player_id:
                         p.wins += 1
-            yield sleep(10)
+            yield sleep(5)
+            # self.server_started = False
 
 
 from autobahn.twisted.wamp import ApplicationRunner
