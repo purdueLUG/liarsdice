@@ -5,8 +5,7 @@ if (document.location.origin === "null" || document.location.origin === "file://
     wsuri = "ws://127.0.0.1:8080/ws";
 }
 else {
-    wsuri = (document.location.protocol === "http:" ? "ws:" : "wss:") + "//" +
-        document.location.hostname + ":8080/ws";
+    wsuri = (document.location.protocol === "http:" ? "ws:" : "wss:") + "//" + document.location.hostname + ":8080/ws";
 }
 
 // the WAMP connection to the Router
@@ -55,17 +54,17 @@ function subscribe_gameboard(gb) {
     $("#gameboard tbody td").remove()
 
     gameboard.player_list.forEach(function (player_id, index) {
-        if (player_id == gameboard.winner) {
+        if (player_id == gameboard.winning_player) {
             tr_class = "success";
         }
-        else if (player_id == gameboard['challenger_id']){
+        else if (player_id == gameboard['current_player']){
             tr_class = "active";
         }
-        else if (gameboard.active_players[player_id] == false) {
-            tr_class = "danger";
+        else if (gameboard.active_players.indexOf(player_id) > -1) {
+            tr_class = "";
         }
         else {
-            tr_class = "";
+            tr_class = "danger";
         }
 
         // if stash for a certain player is known, show their stash

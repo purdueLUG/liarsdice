@@ -11,18 +11,18 @@ from autobahn.wamp.types import RegisterOptions
 
 from random import randint
 from itertools import cycle
+import copy
 
 
 class Player:
     stash = []
     player_id = ''
-    stash_size = 0
+    stash_size = 5
     wins = 0
     active = True
 
-    def __init__(self, player_id, stash_size):
+    def __init__(self, player_id):
         self.player_id = player_id
-        self.stash_size = stash_size
 
     def roll(self):
         self.stash = [randint(1,6) for x in range(0, self.stash_size)]
@@ -34,34 +34,29 @@ class Player:
             return False
         return True
 
-class PlayerList(list):
-    def __init__(self, *args):
-        list.__init__(self, *args)
+class PlayerList:
+    def __init__(self, players):
+        self.players = players
+        self.current_player_index = -1
 
-    def roll(self):
-        for p in self:
-            p.roll()
+    # def next(self):
 
-    def rotate(self, n):
-        '''Rotate list l to the left n places.'''
-        self = self[n:] + self[:n]
-        return PlayerList(self)
+    def __iter__(self):
+        while True:
+            self.current_player_index = (self.current_player_index + 1) % len(self.players)
+            yield self.players[self.current_player_index]
 
-    def delete(self, player):
-        if player in self:
-            self.remove(player)
+    def __len__(self):
+        return len(self.players)
+
+    def remove(self, player):
+        self.players.remove(player)
 
     def penalize(self, player):
-        if player.stash_size > 0:
-            player.lose()
-        if player.stash_size <= 0:
-            self.delete(player)
+        player.stash_size -=1
+        if player.stash_size == 0:
+            self.remove(player)
 
-    def get_pool(self):
-        pool = []
-        for p in self:
-            pool += p.stash
-        return pool
 
 class AlreadyWaiting(Exception):
     pass
@@ -84,12 +79,12 @@ class PromptProtocol(LineOnlyReceiver):
         self.callback(response)
 
 class AppSession(ApplicationSession):
-    players          = PlayerList()
-    starting_players = PlayerList()
-    prev_bet         = {'num_dice': 0, 'value': 0}
-    current_player   = Player('', 0)
-    next_player      = Player('', 0)
-    server_started = False
+    players         = []
+    previous_bet    = {'num_dice': 0, 'value': 0}
+    previous_player = None
+    current_player  = None
+    winning_player = None
+    active_players_cycle  = PlayerList([])
 
     def assemble_gameboard(self, reveal_stashes=False, winner=''):
         stashes = {}
@@ -97,15 +92,15 @@ class AppSession(ApplicationSession):
             stashes = {p.player_id: p.stash for p in self.players}
 
         gameboard = {
-            'stash_sizes'    : {p.player_id: p.stash_size for p in self.players},
-            'player_list'    : [p.player_id for p in self.starting_players],
-            'player_id'      : self.current_player.player_id,
-            'challenger_id'  : self.next_player.player_id,
-            'previous_bet'   : self.prev_bet,
-            'stashes'        : stashes,
-            'active_players' : {p.player_id: p in self.players for p in self.starting_players},
-            'wins'           : {p.player_id: p.wins for p in self.starting_players},
-            'winner'         : winner,
+            'stash_sizes'     : {p.player_id: p.stash_size for p in self.active_players_cycle.players},
+            'player_list'     : [p.player_id for p in self.players],
+            'previous_player' : self.previous_player.player_id if self.previous_player else None,
+            'current_player'  : self.current_player.player_id if self.current_player else None,
+            'previous_bet'    : self.previous_bet,
+            'stashes'         : stashes,
+            'active_players'  : [p.player_id for p in self.active_players_cycle.players],
+            'wins'            : {p.player_id: p.wins for p in self.players},
+            'winning_player'          : self.winning_player.player_id if self.winning_player else None,
         }
         return gameboard
 
@@ -125,125 +120,95 @@ class AppSession(ApplicationSession):
 
         # register remote procedure call named reg
         def reg(ID):
-            if self.server_started == False:
-                self.starting_players += PlayerList([Player(ID, 1)])
-                self.players += PlayerList([Player(ID, 5)])
-                print("reg() called with {}".format(ID))
-                self.publish_gameboard()
-                return True
+            self.players.append(Player(ID))
+            print("reg() called with {}".format(ID))
+            self.publish_gameboard()
+            return True
 
         yield self.register(reg, 'server.register')
         print("procedure reg() registered")
 
         # setup phase
-        print("ten seconds to register...")
-        yield sleep(10)
+        # print("ten seconds to register...")
+        yield sleep(5)
         # yield proto.prompt('press enter to start')
         print("Starting")
-        self.server_started = True
 
+        # run game forever
         while True:
-            self.players = PlayerList(self.starting_players.copy())
+
+            self.winning_player = None
+            self.previous_player = None
+            self.active_players_cycle = PlayerList(copy.copy(self.players))
+            # roll all dice
             for p in self.players:
-                p.stash_size = 5
+                p.roll()
 
-            while len(self.players) > 1:
-                # roll all dice
-                self.players.roll()
+            # loop players endlessly until 0 or 1 players left
+            for self.current_player in self.active_players_cycle:
 
+                # publish the game board
+                yield self.publish_gameboard()
 
-                circle = cycle(enumerate(self.players))
-
-                challenge_response = False
-                valid_bet = True
-                while challenge_response == False:
-                    ind,self.current_player = next(circle)
-
-                    # publish the game board
+                if len(self.active_players_cycle) == 0:
+                    print("GAME OVER, no players entered :(")
+                    yield sleep(10)
+                    break
+                if len(self.active_players_cycle) == 1:
+                    yield self.publish_gameboard(reveal_stashes=True,
+                                                winner=self.active_players_cycle.players[0].player_id)
+                    self.winning_player = self.active_players_cycle.players[0]
+                    print("GAME OVER, winner: " + self.winning_player.player_id)
+                    self.winning_player.wins += 1
                     yield self.publish_gameboard()
+                    yield sleep(10)
+                    break
 
-                    # ask for bet:
-                    try:
-                        new_bet = yield self.call(self.current_player.player_id+'.bet',
-                                                  self.current_player.stash,
-                                                  self.assemble_gameboard())
-                        print("bet() called on {} with result: {}".format(self.current_player, new_bet))
-                        valid_nums = isinstance(new_bet['num_dice'], int) and isinstance(new_bet['value'], int)
-                        if valid_nums and new_bet['num_dice'] > self.prev_bet['num_dice']:
-                            valid_bet = True
-                            self.prev_bet = new_bet
+                # ask for bet:
+                try:
+                    player_response = yield self.call(self.current_player.player_id+'.bet',
+                                                        self.current_player.stash,
+                                                        self.assemble_gameboard())
+                    # handle bet
+                    if ('num_dice' in player_response.keys() and
+                        'value' in player_response.keys() and
+                        isinstance(player_response['num_dice'], int) and
+                        isinstance(player_response['value'], int) and
+                        player_response['num_dice'] > self.previous_bet['num_dice']):
+                        self.previous_bet = player_response
+
+                    # handle challenge
+                    elif ('challenge' in player_response.keys and
+                        player_response['challenge'] == True):
+                        if previous_player.stash.count(previous_bet['value']) >= previous_bet['num_dice']:
+                            # challenge lost
+                            self.publish('server.console', self.current_player.player_id + " lost challenge")
+                            self.current_player.penalize()
                         else:
-                            print("bet is invalid!")
-                            valid_bet = False
-                            self.players.penalize(self.current_player)
-                    except ApplicationError as e:
-                        valid_bet = False
-                        self.players.delete(self.current_player)
+                            # challenge won
+                            self.publish('server.console', self.current_player.player_id + " won challenge")
+                            self.previous_player.penalize()
+                        # reveal stashes
+                        yield self.publish_gameboard(reveal_stashes=True)
+                        # need to reset this for next round
+                        self.previous_bet = {'num_dice': 0, 'value': 0}
+                        yield sleep(1)
 
-                    if valid_bet:
-                        # ask next player for challenge
-                        next_ind = (ind+1)%len(self.players)
-                        self.next_player = self.players[(ind+1)%len(self.players)]
-                        try:
-                            challenge_response = yield self.call(self.next_player.player_id+'.challenge',
-                                                                 self.next_player.stash,
-                                                                 self.assemble_gameboard())
-                            print("challenge() called on {} with result: {}".format(self.next_player,
-                                                                                    challenge_response))
-                        except ApplicationError as e:
-                            self.players.delete(self.next_player)
+                    # invalid player response
+                    else:
+                        self.publish('server.console', self.current_player.player_id + " made an invalid response")
+                        self.current_player.penalize()
 
-                    yield sleep(.5)
-                    yield self.publish_gameboard()
+                except ApplicationError as e:
+                    self.players.remove(self.current_player)
+                    self.active_players_cycle.remove(self.current_player)
 
-                # reveal stashes
-                yield self.publish_gameboard(reveal_stashes=True)
+                self.previous_player = self.current_player
 
-                # check the bet against the pool
-                bet_value = self.prev_bet['value']
-                bet_num_dice = self.prev_bet['num_dice']
-                pool = self.players.get_pool()
-                num_of_value = pool.count(bet_value)
+                yield sleep(.5)
+                yield self.publish_gameboard()
 
-                print("There were {} {}s".format(num_of_value, bet_value))
 
-                # if the bet was good
-                if bet_num_dice <= num_of_value:
-                    self.publish('server.console', self.current_player.player_id + " won its bet!")
-                    print("Better wins!")
-                    # winner begins next round
-                    self.players = self.players.rotate(ind)
-
-                    # penalize loser
-                    self.next_player.lose()
-                    if self.next_player.stash_size <= 0:
-                        self.players.delete(self.next_player)
-                else:
-                    self.publish('server.console', self.next_player.player_id + " won its challenge!")
-                    print("Challenger wins!")
-                    # winner begins next round
-                    self.players = self.players.rotate(next_ind)
-
-                    # penalize loser
-                    self.current_player.lose()
-                    if self.current_player.stash_size <= 0:
-                        self.players.delete(self.current_player)
-
-                # need to reset this for next round
-                self.prev_bet = {'num_dice': 0, 'value': 0}
-
-                yield sleep(1)
-
-            if len(self.players) <= 0:
-                print("GAME OVER, no players entered :(")
-            else:
-                yield self.publish_gameboard(reveal_stashes=True, winner=self.players[0].player_id)
-                print("GAME OVER, winner: " + self.players[0].player_id)
-                for p in self.starting_players:
-                    if p.player_id == self.players[0].player_id:
-                        p.wins += 1
-            yield sleep(5)
-            # self.server_started = False
 
 
 from autobahn.twisted.wamp import ApplicationRunner
