@@ -8,9 +8,14 @@ dice](https://en.wikipedia.org/wiki/Liar's_dice).
 Rules
 -
 ### Setup
-Our game server is manned. The game master opens up a game,
-The game master initiates the setup phase. During the setup phase, we register
-each player, until the game master indicates that the setup phase is complete.
+Example client setup
+    pip install -r requirements_client.txt
+    cd example_bot
+    python example_bot.py [server ip] [botname]
+
+Server setup
+    pip install -r requirements_server.txt
+    crossbar start
 
 ### Winning conditions
 The winner is the last player who possesses dice.

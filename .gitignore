@@ -2,6 +2,7 @@
 .crossbar/key.priv
 .crossbar/key.pub
 .crossbar/node.pid
+.crossbar/server.log
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
