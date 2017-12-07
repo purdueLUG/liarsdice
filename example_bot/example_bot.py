@@ -24,32 +24,37 @@ import logic
 class MyComponent(ApplicationSession):
     async def onJoin(self, details):
 
-        def _turn(stash, gameboard):
-            importlib.reload(logic)
-            return logic.bet(stash, gameboard)
 
         # call register function so server knows about me
         registered = False
         print("Waiting for server response...", end='', flush=True)
         while not registered:
             try:
-                await self.call('server.register', bot_name)
+                await self.call('server.login', bot_name)
                 registered = True
+                print("Logged in to server")
             except(ApplicationError):
                 time.sleep(1)
                 print('.', end='', flush=True)
-        print('done')
+        print('Connected')
 
-        # register my bet and challenge functions with the server
+        # callback function for when it's our turn
+        def _turn(stash, gameboard):
+            importlib.reload(logic)
+            return logic.turn(stash, gameboard)
         await self.register(_turn, bot_name + '.turn')
-        print("registered self with server")
+
+        # callback function for server messages
+        def server_console(message):
+            print("Server says: {}".format(message))
+        await self.subscribe(server_console, 'server.console')
 
         # game board subscription
         # uncomment if you want continuous game board updates
-        def store_gameboard(gameboard):
-            self.gameboard = gameboard
-            #print("Got gameboard: {}".format(gameboard))
-        await self.subscribe(store_gameboard, 'server.gameboard')
+        # def store_gameboard(gameboard):
+        #     self.gameboard = gameboard
+        #     print("Got gameboard: {}".format(gameboard))
+        # await self.subscribe(store_gameboard, 'server.gameboard')
 
 
 if __name__ == "__main__":
