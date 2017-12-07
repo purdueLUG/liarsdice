@@ -24,13 +24,9 @@ import logic
 class MyComponent(ApplicationSession):
     async def onJoin(self, details):
 
-        def _bet(stash, gameboard):
+        def _turn(stash, gameboard):
             importlib.reload(logic)
             return logic.bet(stash, gameboard)
-
-        def _challenge(stash, gameboard):
-            importlib.reload(logic)
-            return logic.challenge(stash, gameboard)
 
         # call register function so server knows about me
         registered = False
@@ -45,8 +41,7 @@ class MyComponent(ApplicationSession):
         print('done')
 
         # register my bet and challenge functions with the server
-        await self.register(_bet, bot_name + '.bet')
-        await self.register(_challenge, bot_name + '.challenge')
+        await self.register(_turn, bot_name + '.turn')
         print("registered self with server")
 
         # game board subscription

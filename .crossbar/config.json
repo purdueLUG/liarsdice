@@ -1,60 +1,91 @@
 {
     "version": 2,
-    "controller": {},
     "workers": [
         {
             "type": "router",
+            "options": {
+                "pythonpath": [".."]
+            },
+            "components": [
+                {
+                    "type": "class",
+                    "realm": "realm1",
+                    "classname": "server.AppSession",
+                    "extra": {
+                        "auto_reconnect": true,
+                        "start_reactor": true
+                    },
+                    "role": "server"
+                }
+            ],
             "realms": [
                 {
                     "name": "realm1",
                     "roles": [
                         {
-                            "name": "anonymous",
+                            "name": "server",
                             "permissions": [
                                 {
-                                    "uri": "",
-                                    "match": "prefix",
+                                    "uri": "*",
                                     "allow": {
-                                        "call": true,
                                         "register": true,
-                                        "publish": true,
-                                        "subscribe": true
-                                    },
-                                    "disclose": {
-                                        "caller": false,
-                                        "publisher": false
-                                    },
-                                    "cache": true
+                                        "call": true,
+                                        "subscribe": true,
+                                        "publish": true
+                                    }
                                 }
                             ]
+                        },
+                        {
+                            "name": "anonymous",
+                            "authorizer": "server.authorize"
                         }
-                    ]
+                    ],
+                    "store": {
+                        "type": "memory",
+                        "uri": "*",
+                        "limit": 100,
+                        "event-history": [
+                            {
+                                "uri": "server.console"
+                            },
+                            {
+                                "uri": "server.gameboard"
+                            }
+                        ]
+                    }
                 }
             ],
             "transports": [
                 {
-                    "type": "universal",
+                    "type": "web",
                     "endpoint": {
                         "type": "tcp",
                         "port": 8080
                     },
-                    "rawsocket": {
-                    },
-                    "websocket": {
+                    "paths": {
+                        "/": {
+                            "type": "static",
+                            "directory": "../gui"
+                        },
                         "ws": {
-                            "type": "websocket"
-                        }
-                    },
-                    "web": {
-                        "paths": {
-                            "/": {
-                                "type": "static",
-                                "directory": "../gui"
+                            "type": "websocket",
+                            "options": {
+                                "auto_ping_interval": 1000,
+                                "auto_ping_timeout": 5000
                             }
                         }
                     }
                 }
             ]
+        },
+        {
+            "type": "container",
+            "options": {
+                "pythonpath": [
+                    ".."
+                ]
+            }
         }
     ]
 }

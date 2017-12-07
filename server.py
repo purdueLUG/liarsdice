@@ -12,7 +12,13 @@ from autobahn.wamp.types import RegisterOptions
 from random import randint
 from itertools import cycle
 import copy
+import logging
 
+log = logging.getLogger(__name__)
+log.setLevel(logging.DEBUG)
+fh = logging.FileHandler('server.log')
+fh.setLevel(logging.DEBUG)
+log.addHandler(fh)
 
 class Player:
     stash = []
@@ -85,6 +91,7 @@ class AppSession(ApplicationSession):
             'active_players'  : [p.player_id for p in self.active_players_cycle.players],
             'wins'            : {p.player_id: p.wins for p in self.active_players_cycle.players},
             'winning_player'  : self.winning_player.player_id if self.winning_player else None,
+            'session_ids'     : {p.player_id: p.session_id for p in self.players},
         }
         return gameboard
 
@@ -111,28 +118,61 @@ class AppSession(ApplicationSession):
     @inlineCallbacks
     def onJoin(self, details):
 
+        log.info('Server started')
+
         # authentication all bot actions
         def action_authorize(session, uri, action, options):
-            print("session:",session)
-            print("uri:",uri)
-            print("action:",action)
-            print("options:",options)
+            log.info('uri:{}'.format(uri))
+            log.info('action:{}'.format(action))
+            log.info('session:{}'.format(str(session)))
+
+            allow = False
+            if action == 'call':
+                # dont let bots login twice
+                if uri == 'server.login' and session['session'] not in [p.session_id for p in self.players]:
+                    allow = True
+                else:
+                    log.info("bot with session id {} is already logged in".format(session['session']))
+                # allow access to publication history
+                if uri == 'wamp.subscription.get_events':
+                    allow = True
+
+            # force bots to register turn function with format player_id.turn
+            elif action == 'register':
+                for p in self.players:
+                    if session['session'] == p.session_id:
+                        break
+                if uri.lstrip(p.player_id) == '.turn':
+                    allow = True
+                else:
+                    log.info("bot with session_id {} tried to register invalid turn function {}".format(session['session'], uri))
+            # bots may only subscribe to server gameboard and console publications
+            elif action == 'subscribe':
+                if uri == 'server.gameboard' or uri == 'server.console':
+                    allow = True
+                else:
+                    log.info("bot with session_id {} is not allowed to subscribe to {}".format(session['session'], uri))
+            return {"allow": allow, "disclose": True, "cache": True}
+
         yield self.register(action_authorize, 'server.authorize')
 
         # register remote procedure call named reg
-        def reg(player_id, session_details=None):
+        def login(player_id, session_details=None):
             # if the player id is already taken, return False
             if player_id in [p.player_id for p in self.players]:
-                self.publish_console("{} tried to register, but the player_id is taken".format(player_id))
+                self.publish_console("{} tried to login, but the player_id is taken".format(player_id))
                 return False
             self.players.append(Player(player_id, session_details.caller))
             self.publish_gameboard()
-            self.publish_console("{} successfully registered".format(player_id))
+            self.publish_console("{} successfully logged in".format(player_id))
             return True
-        yield self.register(reg, 'server.register', options=RegisterOptions(details_arg='session_details'))
+
+        yield self.register(login, 'server.login', options=RegisterOptions(details_arg='session_details'))
 
         # handle player disconnects
         self.subscribe(self.client_left, 'wamp.session.on_leave')
+        # handle client connects
+        self.subscribe(self.publish_gameboard, 'wamp.session_on_join')
 
         # run game forever
         while True:
