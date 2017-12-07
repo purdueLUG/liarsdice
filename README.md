@@ -36,8 +36,11 @@ the IP address of the WAMP server and the bot's nickname:
       
 ## arguments example
 - stash
+
     [1,1,2,2,3,4]
+
 - gameboard
+
     { "player_list": [ "evan", "d" ],
       "winner": "", 
       "previous_bet": { "num_dice": 4, "value": 4 }, 
@@ -51,13 +54,7 @@ the IP address of the WAMP server and the bot's nickname:
 Note that stashes is only available after a round has ended.
 
 
-
-
-server TODO:
-nicer registration period
-timeout
--starting player for next round
-onleave, remove player from game
-
-skelbot TODO:
-commandline options
+## Todo
+- *.turn calling timeout
+- prevent bots from registering .turn of other bots [see here](https://crossbar.io/docs/Authorization/)
+- read in last gameboard from history on gui

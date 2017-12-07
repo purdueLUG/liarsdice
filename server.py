@@ -17,12 +17,14 @@ import copy
 class Player:
     stash = []
     player_id = ''
-    stash_size = 5
+    stash_size = 0
     wins = 0
     active = True
+    session_id = None
 
-    def __init__(self, player_id):
+    def __init__(self, player_id, session_id):
         self.player_id = player_id
+        self.session_id = session_id
 
     def roll(self):
         self.stash = [randint(1,6) for x in range(0, self.stash_size)]
@@ -39,10 +41,8 @@ class PlayerList:
         self.players = players
         self.current_player_index = -1
 
-    # def next(self):
-
     def __iter__(self):
-        while True:
+        while len(self.players)  > 1:
             self.current_player_index = (self.current_player_index + 1) % len(self.players)
             yield self.players[self.current_player_index]
 
@@ -54,29 +54,15 @@ class PlayerList:
 
     def penalize(self, player):
         player.stash_size -=1
-        if player.stash_size == 0:
+        if player.stash_size <= 0:
             self.remove(player)
 
+    def roll(self, reset=False):
+        for p in self.players:
+            if reset:
+                p.stash_size = 5
+            p.roll()
 
-class AlreadyWaiting(Exception):
-    pass
-
-class PromptProtocol(LineOnlyReceiver):
-
-    def __init__(self):
-        self.callback = False
-
-    def prompt(self, prompt: str):
-        if self.callback:
-            raise AlreadyWaiting
-        self.transport.write((prompt + ' ').encode('utf-8'))
-        self.callback = defer.Deferred()
-        return self.callback
-
-    def lineReceived(self, line: bytes):
-        print("line received")
-        response = line.decode('utf-8')
-        self.callback(response)
 
 class AppSession(ApplicationSession):
     players         = []
@@ -85,11 +71,9 @@ class AppSession(ApplicationSession):
     current_player  = None
     winning_player = None
     active_players_cycle  = PlayerList([])
+    reveal_stashes = False
 
-    def assemble_gameboard(self, reveal_stashes=False, winner=''):
-        stashes = {}
-        if reveal_stashes:
-            stashes = {p.player_id: p.stash for p in self.players}
+    def assemble_gameboard(self):
 
         gameboard = {
             'stash_sizes'     : {p.player_id: p.stash_size for p in self.active_players_cycle.players},
@@ -97,52 +81,72 @@ class AppSession(ApplicationSession):
             'previous_player' : self.previous_player.player_id if self.previous_player else None,
             'current_player'  : self.current_player.player_id if self.current_player else None,
             'previous_bet'    : self.previous_bet,
-            'stashes'         : stashes,
+            'stashes'         : {p.player_id: p.stash if self.reveal_stashes else None for p in self.active_players_cycle.players},
             'active_players'  : [p.player_id for p in self.active_players_cycle.players],
-            'wins'            : {p.player_id: p.wins for p in self.players},
-            'winning_player'          : self.winning_player.player_id if self.winning_player else None,
+            'wins'            : {p.player_id: p.wins for p in self.active_players_cycle.players},
+            'winning_player'  : self.winning_player.player_id if self.winning_player else None,
         }
         return gameboard
 
-    def publish_gameboard(self, reveal_stashes=False, winner=''):
-        gameboard = self.assemble_gameboard(reveal_stashes=reveal_stashes, winner=winner)
+    def publish_gameboard(self):
+        gameboard = self.assemble_gameboard()
         self.publish('server.gameboard', gameboard)
-        print("published to 'server.gameboard'")
+
+    def publish_console(self, message):
+        self.publish('server.console', message)
 
     def publish_winner(self, playerID):
         self.publish('server.gameboard', playerID)
-        print("published to 'server.gameboard'")
+
+    # remove player from players and active_players_cycle
+    def client_left(self, session_id):
+        for p in self.players:
+            if p.session_id == session_id:
+                self.publish_console("{} left the game".format(p.player_id))
+                self.players.remove(p)
+                if p in self.active_players_cycle.players:
+                    self.active_players_cycle.remove(p)
+        self.publish_gameboard()
 
     @inlineCallbacks
     def onJoin(self, details):
-        proto = PromptProtocol()
-        StandardIO(proto, reactor=reactor)
+
+        # authentication all bot actions
+        def action_authorize(session, uri, action, options):
+            print("session:",session)
+            print("uri:",uri)
+            print("action:",action)
+            print("options:",options)
+        yield self.register(action_authorize, 'server.authorize')
 
         # register remote procedure call named reg
-        def reg(ID):
-            self.players.append(Player(ID))
-            print("reg() called with {}".format(ID))
+        def reg(player_id, session_details=None):
+            # if the player id is already taken, return False
+            if player_id in [p.player_id for p in self.players]:
+                self.publish_console("{} tried to register, but the player_id is taken".format(player_id))
+                return False
+            self.players.append(Player(player_id, session_details.caller))
             self.publish_gameboard()
+            self.publish_console("{} successfully registered".format(player_id))
             return True
+        yield self.register(reg, 'server.register', options=RegisterOptions(details_arg='session_details'))
 
-        yield self.register(reg, 'server.register')
-        print("procedure reg() registered")
-
-        # setup phase
-        # print("ten seconds to register...")
-        yield sleep(5)
-        # yield proto.prompt('press enter to start')
-        print("Starting")
+        # handle player disconnects
+        self.subscribe(self.client_left, 'wamp.session.on_leave')
 
         # run game forever
         while True:
 
+            # setup phase
             self.winning_player = None
+            self.current_player = None
             self.previous_player = None
+            # we should sleep until len(self.players) > 2
+            yield sleep(10)
+
             self.active_players_cycle = PlayerList(copy.copy(self.players))
             # roll all dice
-            for p in self.players:
-                p.roll()
+            self.active_players_cycle.roll(reset=True)
 
             # loop players endlessly until 0 or 1 players left
             for self.current_player in self.active_players_cycle:
@@ -150,27 +154,14 @@ class AppSession(ApplicationSession):
                 # publish the game board
                 yield self.publish_gameboard()
 
-                if len(self.active_players_cycle) == 0:
-                    print("GAME OVER, no players entered :(")
-                    yield sleep(10)
-                    break
-                if len(self.active_players_cycle) == 1:
-                    yield self.publish_gameboard(reveal_stashes=True,
-                                                winner=self.active_players_cycle.players[0].player_id)
-                    self.winning_player = self.active_players_cycle.players[0]
-                    print("GAME OVER, winner: " + self.winning_player.player_id)
-                    self.winning_player.wins += 1
-                    yield self.publish_gameboard()
-                    yield sleep(10)
-                    break
-
                 # ask for bet:
                 try:
-                    player_response = yield self.call(self.current_player.player_id+'.bet',
-                                                        self.current_player.stash,
-                                                        self.assemble_gameboard())
+                    player_response = yield self.call(self.current_player.player_id+'.turn',
+                                                      self.current_player.stash,
+                                                      self.assemble_gameboard())
                     # handle bet
-                    if ('num_dice' in player_response.keys() and
+                    if (isinstance(player_response, dict) and
+                        'num_dice' in player_response.keys() and
                         'value' in player_response.keys() and
                         isinstance(player_response['num_dice'], int) and
                         isinstance(player_response['value'], int) and
@@ -178,30 +169,47 @@ class AppSession(ApplicationSession):
                         self.previous_bet = player_response
 
                     # handle challenge
-                    elif ('challenge' in player_response.keys and
+                    elif (isinstance(player_response, dict) and
+                          'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
-                        if previous_player.stash.count(previous_bet['value']) >= previous_bet['num_dice']:
+                        if (not self.previous_player or
+                            self.previous_player.stash.count(self.previous_bet['value']) >= self.previous_bet['num_dice']):
                             # challenge lost
-                            self.publish('server.console', self.current_player.player_id + " lost challenge")
-                            self.current_player.penalize()
+                            self.publish_console(self.current_player.player_id + " lost challenge")
+                            self.active_players_cycle.penalize(self.current_player)
                         else:
                             # challenge won
-                            self.publish('server.console', self.current_player.player_id + " won challenge")
-                            self.previous_player.penalize()
+                            self.publish_console(self.current_player.player_id + " won challenge")
+                            self.active_players_cycle.penalize(self.previous_player)
                         # reveal stashes
-                        yield self.publish_gameboard(reveal_stashes=True)
+                        self.reveal_stashes = True
+                        yield self.publish_gameboard()
                         # need to reset this for next round
                         self.previous_bet = {'num_dice': 0, 'value': 0}
+                        self.active_players_cycle.roll()
                         yield sleep(1)
+                        self.reveal_stashes = False
 
                     # invalid player response
                     else:
-                        self.publish('server.console', self.current_player.player_id + " made an invalid response")
-                        self.current_player.penalize()
+                        self.publish_console(self.current_player.player_id + " made an invalid response: {}".format(player_response))
+                        self.active_players_cycle.penalize(self.current_player)
 
+                # error when calling player turn - remove them from the game completely
                 except ApplicationError as e:
                     self.players.remove(self.current_player)
                     self.active_players_cycle.remove(self.current_player)
+
+                # player win
+                if len(self.active_players_cycle) == 1:
+                    self.reveal_stashes = True
+                    yield self.publish_gameboard()
+                    self.winning_player = self.active_players_cycle.players[0]
+                    self.publish_console("{} won".format(self.winning_player.player_id))
+                    self.winning_player.wins += 1
+                    yield self.publish_gameboard()
+                    self.reveal_stashes = False
+                    break
 
                 self.previous_player = self.current_player
 
@@ -209,9 +217,9 @@ class AppSession(ApplicationSession):
                 yield self.publish_gameboard()
 
 
-
-
 from autobahn.twisted.wamp import ApplicationRunner
+# r = ApplicationRunner(url=u'ws://localhost:8080/ws', realm=u'realm1')
+# r.run(AppSession, auto_reconnect=True, start_reactor=True)
+
 if __name__ == '__main__':
-    r = ApplicationRunner(url=u'ws://localhost:8080/ws', realm=u'realm1')
-    r.run(AppSession, auto_reconnect=True, start_reactor=True)
+    print("Don't start this script direclty. Start using `crossbar start`")
