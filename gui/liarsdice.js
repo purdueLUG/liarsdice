@@ -108,7 +108,7 @@ function get_success_callback(history=false) {
                     // if history available, pass events one by one to callback function
                     console.log(history.length)
                     if (history.length > 0) {
-                        history.forEach(function(element) {
+                        history.reverse().forEach(function(element) {
                             console.log(element.args);
                             subscription.handler(element.args);
                         });
