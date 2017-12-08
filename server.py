@@ -89,7 +89,7 @@ class AppSession(ApplicationSession):
             'previous_bet'    : self.previous_bet,
             'stashes'         : {p.player_id: p.stash if self.reveal_stashes else None for p in self.active_players_cycle.players},
             'active_players'  : [p.player_id for p in self.active_players_cycle.players],
-            'wins'            : {p.player_id: p.wins for p in self.active_players_cycle.players},
+            'wins'            : {p.player_id: p.wins for p in self.players},
             'winning_player'  : self.winning_player.player_id if self.winning_player else None,
             'session_ids'     : {p.player_id: p.session_id for p in self.players},
         }
