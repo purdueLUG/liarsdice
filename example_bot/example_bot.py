@@ -22,21 +22,12 @@ import logic
 #   game_state    : bool                    = whether game is running or not
 
 class MyComponent(ApplicationSession):
+
     async def onJoin(self, details):
-
-
-        # call register function so server knows about me
-        registered = False
-        print("Waiting for server response...", end='', flush=True)
-        while not registered:
-            try:
-                await self.call('server.login', bot_name)
-                registered = True
-                print("Logged in to server")
-            except(ApplicationError):
-                time.sleep(1)
-                print('.', end='', flush=True)
-        print('Connected')
+        # login to gameserver
+        await self.call('server.login', bot_name)
+        registered = True
+        print("Logged in to server")
 
         # callback function for when it's our turn
         def _turn(stash, gameboard):
@@ -49,12 +40,10 @@ class MyComponent(ApplicationSession):
             print("Server says: {}".format(message))
         await self.subscribe(server_console, 'server.console')
 
-        # game board subscription
-        # uncomment if you want continuous game board updates
-        # def store_gameboard(gameboard):
-        #     self.gameboard = gameboard
-        #     print("Got gameboard: {}".format(gameboard))
-        # await self.subscribe(store_gameboard, 'server.gameboard')
+    # handle server shutdown
+    async def onDisconnect(self):
+        print("Server shutdown or connection lost")
+        asyncio.get_event_loop().stop()
 
 
 if __name__ == "__main__":
@@ -63,5 +52,11 @@ if __name__ == "__main__":
     parser.add_argument("player_id", help="Player's unique nickname")
     args = parser.parse_args()
     bot_name = args.player_id
-    runner = ApplicationRunner('ws://{}:8080/ws'.format(args.server_ip), 'realm1')
-    runner.run(MyComponent)
+    while True:
+        print("Connecting")
+        runner = ApplicationRunner('ws://{}:8080/ws'.format(args.server_ip), 'realm1')
+        runner.run(MyComponent)
+        # poor man's auto reconnect
+        time.sleep(10)
+        asyncio.set_event_loop(asyncio.new_event_loop())
+

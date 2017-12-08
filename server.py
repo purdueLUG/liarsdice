@@ -1,4 +1,7 @@
-from twisted.internet.defer import inlineCallbacks
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+from twisted.internet.defer import inlineCallbacks, TimeoutError
 from twisted.internet import reactor
 from twisted.protocols.basic import LineOnlyReceiver
 from twisted.internet.stdio import StandardIO
@@ -198,7 +201,7 @@ class AppSession(ApplicationSession):
                 try:
                     player_response = yield self.call(self.current_player.player_id+'.turn',
                                                       self.current_player.stash,
-                                                      self.assemble_gameboard())
+                                                      self.assemble_gameboard()).addTimeout(1, reactor)
                     # handle bet
                     if (isinstance(player_response, dict) and
                         'num_dice' in player_response.keys() and
@@ -237,8 +240,11 @@ class AppSession(ApplicationSession):
 
                 # error when calling player turn - remove them from the game completely
                 except ApplicationError as e:
-                    self.players.remove(self.current_player)
-                    self.active_players_cycle.remove(self.current_player)
+                    self.publish_console("{} had an error".format(self.current_player.player_id))
+                    self.active_players_cycle.penalize(self.current_player)
+                except TimeoutError:
+                    self.publish_console("{} took too long to respond".format(self.current_player.player_id))
+                    self.active_players_cycle.penalize(self.current_player)
 
                 # player win
                 if len(self.active_players_cycle) == 1:

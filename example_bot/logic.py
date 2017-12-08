@@ -8,9 +8,8 @@ def turn(stash, gameboard):
     # only challenge if there is a previous player
     if gameboard['previous_player']:
         if gameboard['previous_bet']['num_dice'] > 5:
-        return {'challenge': True}
+            return {'challenge': True}
     # otherwise, make a bet
-    else:
-        num_dice = gameboard['previous_bet']['num_dice'] + 1
-        value = 0
-        return {'num_dice': num_dice, 'value': value}
+    num_dice = gameboard['previous_bet']['num_dice'] + 1
+    value = 0
+    return {'num_dice': num_dice, 'value': value}
