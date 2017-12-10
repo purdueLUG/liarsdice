@@ -7,7 +7,7 @@ from random import randint
 # to make challenge, {'challenge': True}
 def turn(stash, gameboard):
 
-    # challenge if the previous bet is over 5
+    # challenge if we're not the first player and if the previous bet is over 5
     if gameboard['previous_player'] and gameboard['previous_bet']['num_dice'] > 5:
             return {'challenge': True}
     # otherwise, make a bet
