@@ -1,15 +1,16 @@
 from random import randint
 
-# called when it's our turn
+# this bot always challenges if the bet size goes over 5 dice
+# otherwise, it always bets on a face value of 1
+
 # to make bet, returned value must be dict of form {'num_dice':num_dice, 'value':value}
 # to make challenge, {'challenge': True}
 def turn(stash, gameboard):
 
-    # only challenge if there is a previous player
-    if gameboard['previous_player']:
-        if gameboard['previous_bet']['num_dice'] > 5:
+    # challenge if the previous bet is over 5
+    if gameboard['previous_player'] and gameboard['previous_bet']['num_dice'] > 5:
             return {'challenge': True}
     # otherwise, make a bet
     num_dice = gameboard['previous_bet']['num_dice'] + 1
-    value = 0
+    value = 1
     return {'num_dice': num_dice, 'value': value}
