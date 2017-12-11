@@ -1,11 +1,8 @@
-Liar's Dice
-=
+# Liar's Dice
 
 This project is a  game server we created for a club activity in which
 participants program bots to compete in a game of [liar's dice](https://en.wikipedia.org/wiki/Liar's_dice). 
 
-Rules
--
 ## Installation and Setup
 Example client setup
     pip install -r requirements_client.txt

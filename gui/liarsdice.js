@@ -11,7 +11,8 @@ else {
 // the WAMP connection to the Router
 var connection = new autobahn.Connection({
     url: wsuri,
-    realm: "realm1"
+    realm: "realm1",
+    max_retries: -1
 });
 
 var table;
