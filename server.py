@@ -12,7 +12,7 @@ from autobahn.twisted.wamp import ApplicationSession
 from autobahn.wamp.exception import ApplicationError
 from autobahn.wamp.types import RegisterOptions
 
-from random import randint
+from random import randint, shuffle
 from itertools import cycle
 import copy
 import logging
@@ -20,6 +20,8 @@ import logging
 log = logging.getLogger(__name__)
 log.setLevel(logging.DEBUG)
 fh = logging.FileHandler('server.log')
+formatter = logging.Formatter('%(asctime)-15s %(message)s')
+fh.setFormatter(formatter)
 fh.setLevel(logging.DEBUG)
 log.addHandler(fh)
 
@@ -67,20 +69,31 @@ class PlayerList:
             self.remove(player)
 
     def roll(self, reset=False):
+        log.info("----------------------- a4")
         for p in self.players:
             if reset:
                 p.stash_size = 5
             p.roll()
+        log.info("----------------------- a5")
+
+    def count(self, value):
+        num_dice = 0
+        for p in self.players:
+            for d in p.stash:
+                if d == value:
+                    num_dice += 1
+
+        return num_dice
 
 
 class AppSession(ApplicationSession):
-    players         = []
-    previous_bet    = {'num_dice': 0, 'value': 0}
-    previous_player = None
-    current_player  = None
-    winning_player = None
-    active_players_cycle  = PlayerList([])
-    reveal_stashes = False
+    players              = []
+    previous_bet         = {'num_dice': 0, 'value': 0}
+    previous_player      = None
+    current_player       = None
+    winning_player       = None
+    active_players_cycle = PlayerList([])
+    reveal_stashes       = False
 
     def assemble_gameboard(self):
 
@@ -127,18 +140,19 @@ class AppSession(ApplicationSession):
         def action_authorize(session, uri, action, options):
             log.info('uri:{}'.format(uri))
             log.info('action:{}'.format(action))
-            log.info('session:{}'.format(str(session)))
+            # log.info('session:{}'.format(str(session)))
+            log.info('players:{}'.format(str(self.players)))
 
             allow = False
             if action == 'call':
+                if uri == 'wamp.subscription.get_events':
+                    allow = True
                 # dont let bots login twice
-                if uri == 'server.login' and session['session'] not in [p.session_id for p in self.players]:
+                elif uri == 'server.login' and session['session'] not in [p.session_id for p in self.players]:
                     allow = True
                 else:
                     log.info("bot with session id {} is already logged in".format(session['session']))
                 # allow access to publication history
-                if uri == 'wamp.subscription.get_events':
-                    allow = True
 
             # force bots to register turn function with format player_id.turn
             elif action == 'register':
@@ -163,19 +177,22 @@ class AppSession(ApplicationSession):
         def login(player_id, session_details=None):
             # if the player id is already taken, return False
             if player_id in [p.player_id for p in self.players]:
-                self.publish_console("{} tried to login, but the player_id is taken".format(player_id))
+                log.info("{} tried to login, but the player_id is taken".format(player_id))
                 return False
             self.players.append(Player(player_id, session_details.caller))
             self.publish_gameboard()
-            self.publish_console("{} successfully logged in".format(player_id))
+            log.info("{} successfully logged in".format(player_id))
             return True
 
+        log.info("----------------------- foo")
         yield self.register(login, 'server.login', options=RegisterOptions(details_arg='session_details'))
 
         # handle player disconnects
         self.subscribe(self.client_left, 'wamp.session.on_leave')
         # handle client connects
         self.subscribe(self.publish_gameboard, 'wamp.session_on_join')
+
+        log.info("----------------------- start")
 
         # run game forever
         while True:
@@ -185,23 +202,34 @@ class AppSession(ApplicationSession):
             self.current_player = None
             self.previous_player = None
             # we should sleep until len(self.players) > 2
-            yield sleep(10)
+            yield sleep(5)
 
+            log.info("----------------------- a1")
+            shuffle(self.players)
             self.active_players_cycle = PlayerList(copy.copy(self.players))
+            log.info("---------apl----------- {}".format(self.active_players_cycle.players))
+            log.info("----------pl----------- {}".format(self.players))
+            log.info("----------------------- a2")
             # roll all dice
             self.active_players_cycle.roll(reset=True)
+            log.info("----------------------- a3")
 
+            log.info("----------------------- a")
             # loop players endlessly until 0 or 1 players left
             for self.current_player in self.active_players_cycle:
+                log.info("----------------------- b")
 
                 # publish the game board
                 yield self.publish_gameboard()
+                log.info("----------------------- b5")
 
                 # ask for bet:
                 try:
+                    log.info("----------------------- b6")
                     player_response = yield self.call(self.current_player.player_id+'.turn',
                                                       self.current_player.stash,
                                                       self.assemble_gameboard()).addTimeout(1, reactor)
+                    log.info("----------------------- c")
                     # handle bet
                     if (isinstance(player_response, dict) and
                         'num_dice' in player_response.keys() and
@@ -211,12 +239,13 @@ class AppSession(ApplicationSession):
                         player_response['num_dice'] > self.previous_bet['num_dice']):
                         self.previous_bet = player_response
 
+                        log.info("----------------------- c1")
                     # handle challenge
                     elif (isinstance(player_response, dict) and
                           'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
                         if (not self.previous_player or
-                            self.previous_player.stash.count(self.previous_bet['value']) >= self.previous_bet['num_dice']):
+                            self.active_players_cycle.count(self.previous_bet['value']) >= self.previous_bet['num_dice']):
                             # challenge lost
                             self.publish_console(self.current_player.player_id + " lost challenge")
                             self.active_players_cycle.penalize(self.current_player)
@@ -232,22 +261,28 @@ class AppSession(ApplicationSession):
                         self.active_players_cycle.roll()
                         yield sleep(1)
                         self.reveal_stashes = False
+                        log.info("----------------------- c2")
 
                     # invalid player response
                     else:
                         self.publish_console(self.current_player.player_id + " made an invalid response: {}".format(player_response))
                         self.active_players_cycle.penalize(self.current_player)
+                    log.info("----------------------- b1")
 
                 # error when calling player turn - remove them from the game completely
                 except ApplicationError as e:
+                    log.info("----------------------- b9")
                     self.publish_console("{} had an error".format(self.current_player.player_id))
                     self.active_players_cycle.penalize(self.current_player)
                 except TimeoutError:
+                    log.info("----------------------- b8")
                     self.publish_console("{} took too long to respond".format(self.current_player.player_id))
                     self.active_players_cycle.penalize(self.current_player)
+                log.info("----------------------- b2")
 
                 # player win
                 if len(self.active_players_cycle) == 1:
+                    log.info("----------------------- b3")
                     self.reveal_stashes = True
                     yield self.publish_gameboard()
                     self.winning_player = self.active_players_cycle.players[0]
@@ -256,11 +291,15 @@ class AppSession(ApplicationSession):
                     yield self.publish_gameboard()
                     self.reveal_stashes = False
                     break
+                log.info("----------------------- b4")
 
                 self.previous_player = self.current_player
 
                 yield sleep(.5)
                 yield self.publish_gameboard()
+
+                log.info("----------------------- b7")
+            log.info("----------------------- d")
 
 
 from autobahn.twisted.wamp import ApplicationRunner
