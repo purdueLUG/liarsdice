@@ -11,7 +11,8 @@ else {
 // the WAMP connection to the Router
 var connection = new autobahn.Connection({
     url: wsuri,
-    realm: "realm1"
+    realm: "realm1",
+    max_retries: -1
 });
 
 var table;
@@ -88,7 +89,7 @@ function subscribe_gameboard(gb) {
                                       '<td>', index, '</td>',
                                       '<td>', player_id, '</td>',
                                       dice_html,
-                                      '<td>', gameboard.wins[player_id], '</td>',
+                                      '<td>', gameboard.last_wins[player_id], '</td>',
                                       '</tr>'].join(''));
     });
 }
