@@ -11,6 +11,7 @@ from autobahn.twisted.util import sleep
 from autobahn.twisted.wamp import ApplicationSession
 from autobahn.wamp.exception import ApplicationError
 from autobahn.wamp.types import RegisterOptions
+import collections
 
 from random import randint
 from itertools import cycle
@@ -39,11 +40,6 @@ class Player:
         self.stash = [randint(1,6) for x in range(0, self.stash_size)]
         return self.stash
 
-    def lose(self):
-        self.stash_size -= 1
-        if self.stash_size > 0:
-            return False
-        return True
 
 class PlayerList:
     def __init__(self, players):
@@ -81,6 +77,7 @@ class AppSession(ApplicationSession):
     winning_player = None
     active_players_cycle  = PlayerList([])
     reveal_stashes = False
+    last_wins = collections.deque([], 50)
 
     def assemble_gameboard(self):
 
@@ -93,6 +90,7 @@ class AppSession(ApplicationSession):
             'stashes'         : {p.player_id: p.stash if self.reveal_stashes else None for p in self.active_players_cycle.players},
             'active_players'  : [p.player_id for p in self.active_players_cycle.players],
             'wins'            : {p.player_id: p.wins for p in self.players},
+            'last_wins'       : {p.player_id: self.last_wins.count(p.player_id) for p in self.players},
             'winning_player'  : self.winning_player.player_id if self.winning_player else None,
             'session_ids'     : {p.player_id: p.session_id for p in self.players},
         }
@@ -253,6 +251,7 @@ class AppSession(ApplicationSession):
                     self.winning_player = self.active_players_cycle.players[0]
                     self.publish_console("{} won".format(self.winning_player.player_id))
                     self.winning_player.wins += 1
+                    self.last_wins.append(self.winning_player.player_id)
                     yield self.publish_gameboard()
                     self.reveal_stashes = False
                     break

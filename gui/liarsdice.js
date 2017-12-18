@@ -89,7 +89,7 @@ function subscribe_gameboard(gb) {
                                       '<td>', index, '</td>',
                                       '<td>', player_id, '</td>',
                                       dice_html,
-                                      '<td>', gameboard.wins[player_id], '</td>',
+                                      '<td>', gameboard.last_wins[player_id], '</td>',
                                       '</tr>'].join(''));
     });
 }
