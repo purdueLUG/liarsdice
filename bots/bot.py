@@ -8,6 +8,8 @@ from autobahn.twisted.util import sleep
 from twisted.internet.defer import inlineCallbacks
 import importlib
 import logic
+# do bytestring to unicode conversion in python2. no effect in python3
+from six import u
 
 parser = argparse.ArgumentParser()
 parser.add_argument("server_ip", help="IP address of the WAMP server")
@@ -36,7 +38,7 @@ def join(self, details):
     while not logged_in:
         try:
             # login to gameserver
-            yield self.call(u'server.login', args.player_id)
+            yield self.call(u'server.login', u(args.player_id))
             logged_in = True
         except ApplicationError:
             yield sleep(5)
@@ -47,8 +49,8 @@ def join(self, details):
     # callback function for when it's our turn
     def turn(stash, gameboard):
         importlib.import_module('logic.' + args.logic)
-        return getattr(logic, args.logic).turn(stash, gameboard)
-    yield self.register(turn, args.player_id + u'.turn')
+        return {u(key): value for key, value in getattr(logic, args.logic).turn(stash, gameboard).items()}
+    yield self.register(turn, u(args.player_id + '.turn'))
 
     #---------- Pub/Sub -----------
 
@@ -61,8 +63,9 @@ def join(self, details):
 # handle server shutdown
 @component.on_disconnect
 @inlineCallbacks
-def disconnect(self):
+def disconnect(self, was_clean):
     print("Server shutdown or connection lost")
+    yield
 
 
 run(component)
