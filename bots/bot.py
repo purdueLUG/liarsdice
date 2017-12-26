@@ -50,10 +50,10 @@ def join(self, details):
     #---------- RPC -----------
 
     # callback function for when it's our turn
+    logic_module = importlib.import_module('logic.' + args.logic)
     def turn(stash, gameboard):
-        logic_func = importlib.import_module('logic.' + args.logic)
-        importlib.reload(logic_func)
-        return {u(key): value for key, value in getattr(logic, args.logic).turn(stash, gameboard).items()}
+        importlib.reload(logic_module)
+        return {u(key): value for key, value in logic_module.turn(stash, gameboard).items()}
     yield self.register(turn, u(args.player_id + '.turn'))
 
     #---------- Pub/Sub -----------
