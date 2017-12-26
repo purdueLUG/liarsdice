@@ -6,8 +6,11 @@ from autobahn.wamp.exception import ApplicationError
 from autobahn.twisted.component import Component, run
 from autobahn.twisted.util import sleep
 from twisted.internet.defer import inlineCallbacks
+from twisted.python import log
+import sys
 import importlib
 import logic
+import time
 # do bytestring to unicode conversion in python2. no effect in python3
 from six import u
 
@@ -48,7 +51,8 @@ def join(self, details):
 
     # callback function for when it's our turn
     def turn(stash, gameboard):
-        importlib.import_module('logic.' + args.logic)
+        logic_func = importlib.import_module('logic.' + args.logic)
+        importlib.reload(logic_func)
         return {u(key): value for key, value in getattr(logic, args.logic).turn(stash, gameboard).items()}
     yield self.register(turn, u(args.player_id + '.turn'))
 
@@ -62,10 +66,8 @@ def join(self, details):
 
 # handle server shutdown
 @component.on_disconnect
-@inlineCallbacks
 def disconnect(self, was_clean):
     print("Server shutdown or connection lost")
-    yield
 
 
 run(component)
