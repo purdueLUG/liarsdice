@@ -252,6 +252,7 @@ class AppSession(ApplicationSession):
                             self.active_players_cycle.penalize(self.previous_player)
                         # reveal stashes
                         self.reveal_stashes = True
+                        self.previous_player = None
                         yield self.publish_gameboard()
                         # need to reset this for next round
                         self.previous_bet = {'num_dice': 0, 'value': 0}
@@ -288,6 +289,7 @@ class AppSession(ApplicationSession):
                     self.last_wins.append(self.winning_player.player_id)
                     yield self.publish_gameboard()
                     self.reveal_stashes = False
+                    self.previous_player = None
                     break
                 log.info("----------------------- b4")
 
