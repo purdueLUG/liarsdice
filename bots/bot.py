@@ -24,7 +24,7 @@ component = Component(
     transports = [
         {
             "type": "websocket",
-            "url": u"ws://diode.purduelug.org:8080/ws",
+            "url": u"ws://{}:8080/ws".format(args.server_ip),
             "options": {
                 "open_handshake_timeout": 60.0,
             }

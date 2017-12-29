@@ -90,6 +90,7 @@ class AppSession(ApplicationSession):
     winning_player       = None
     active_players_cycle = PlayerList([])
     reveal_stashes       = False
+    last_wins            = []
 
     def assemble_gameboard(self):
 
@@ -109,6 +110,7 @@ class AppSession(ApplicationSession):
         return gameboard
 
     def publish_gameboard(self):
+        self.publish_console("gameboard publish with previous_player:" + str(self.previous_player))
         gameboard = self.assemble_gameboard()
         self.publish('server.gameboard', gameboard)
 
@@ -235,6 +237,7 @@ class AppSession(ApplicationSession):
                         isinstance(player_response['value'], int) and
                         player_response['num_dice'] > self.previous_bet['num_dice']):
                         self.previous_bet = player_response
+                        self.previous_player = self.current_player
 
                         log.info("----------------------- c1")
                     # handle challenge
@@ -257,7 +260,7 @@ class AppSession(ApplicationSession):
                         # need to reset this for next round
                         self.previous_bet = {'num_dice': 0, 'value': 0}
                         self.active_players_cycle.roll()
-                        yield sleep(1)
+                        yield sleep(2)
                         self.reveal_stashes = False
                         log.info("----------------------- c2")
 
@@ -289,13 +292,11 @@ class AppSession(ApplicationSession):
                     self.last_wins.append(self.winning_player.player_id)
                     yield self.publish_gameboard()
                     self.reveal_stashes = False
-                    self.previous_player = None
                     break
                 log.info("----------------------- b4")
 
-                self.previous_player = self.current_player
 
-                yield sleep(.5)
+                yield sleep(2)
                 yield self.publish_gameboard()
 
                 log.info("----------------------- b7")
