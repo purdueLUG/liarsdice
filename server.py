@@ -252,7 +252,8 @@ class AppSession(ApplicationSession):
                           'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
                         log.info("----------------------- c8")
-                        if (self.previous_player or
+                        self.publish_console("bet was {} dice.  I counted {}".format(self.previous_bet['num_dice'], self.active_players_cycle.count(self.previous_bet['value'])))
+                        if (not self.previous_player or
                             self.active_players_cycle.count(self.previous_bet['value']) < self.previous_bet['num_dice']):
                             log.info("----------------------- c9")
                             # challenge lost
