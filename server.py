@@ -110,6 +110,7 @@ class AppSession(ApplicationSession):
         return gameboard
 
     def publish_gameboard(self):
+        self.publish_console("gameboard publish with previous_player:" + str(self.previous_player))
         gameboard = self.assemble_gameboard()
         self.publish('server.gameboard', gameboard)
 
@@ -244,6 +245,7 @@ class AppSession(ApplicationSession):
                         player_response['num_dice'] > self.previous_bet['num_dice']):
                         log.info("----------------------- c7")
                         self.previous_bet = player_response
+                        self.previous_player = self.current_player
 
                         log.info("----------------------- c1")
                     # handle challenge
@@ -268,11 +270,12 @@ class AppSession(ApplicationSession):
                         log.info("----------------------- c5")
                         # reveal stashes
                         self.reveal_stashes = True
+                        self.previous_player = None
                         yield self.publish_gameboard()
                         # need to reset this for next round
                         self.previous_bet = {'num_dice': 0, 'value': 0}
                         self.active_players_cycle.roll()
-                        yield sleep(1)
+                        yield sleep(2)
                         self.reveal_stashes = False
                         log.info("----------------------- c2")
 
@@ -310,9 +313,8 @@ class AppSession(ApplicationSession):
                     break
                 log.info("----------------------- b4")
 
-                self.previous_player = self.current_player
 
-                yield sleep(.5)
+                yield sleep(2)
                 yield self.publish_gameboard()
 
                 log.info("----------------------- b7")

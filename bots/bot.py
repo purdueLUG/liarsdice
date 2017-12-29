@@ -2,62 +2,72 @@
 # -*- coding: utf-8 -*-
 
 import argparse
-import asyncio
-import time
-from autobahn.asyncio.wamp import ApplicationSession, ApplicationRunner
 from autobahn.wamp.exception import ApplicationError
+from autobahn.twisted.component import Component, run
+from autobahn.twisted.util import sleep
+from twisted.internet.defer import inlineCallbacks
+from twisted.python import log
+import sys
 import importlib
 import logic
-import sys
+import time
+# do bytestring to unicode conversion in python2. no effect in python3
+from six import u
 
-class MyComponent(ApplicationSession):
+parser = argparse.ArgumentParser()
+parser.add_argument("server_ip", help="IP address of the WAMP server")
+parser.add_argument("player_id", help="Player's unique nickname")
+parser.add_argument('--logic', metavar='logic_function', type=str, default="example", help="logic function name (without .py)")
+args = parser.parse_args()
 
-    async def onJoin(self, details):
-        logged_in = False
-        while not logged_in:
-            try:
-                # login to gameserver
-                await self.call('server.login', bot_name)
-                logged_in = True
-            except ApplicationError:
-                pass
-        print("Logged in to server")
-
-        # callback function for when it's our turn
-        def _turn(stash, gameboard):
-            importlib.reload(logic)
-            return getattr(logic, logic_func).turn(stash, gameboard)
-        await self.register(_turn, bot_name + '.turn')
-
-        # callback function for server messages
-        def server_console(message):
-            print("Server says: {}".format(message))
-        await self.subscribe(server_console, 'server.console')
-
-    # handle server shutdown
-    async def onDisconnect(self):
-        print("Server shutdown or connection lost")
-        asyncio.get_event_loop().stop()
+component = Component(
+    transports = [
+        {
+            "type": "websocket",
+            "url": u"ws://{}:8080/ws".format(args.server_ip),
+            "options": {
+                "open_handshake_timeout": 60.0,
+            }
+        }
+    ],
+    realm=u'realm1',
+)
 
 
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("server_ip", help="IP address of the WAMP server")
-    parser.add_argument("player_id", help="Player's unique nickname")
-    parser.add_argument('--logic', action="store_true", default='example')
-
-    args = parser.parse_args()
-    bot_name = args.player_id
-    logic_function = args.logic
-
-    while True:
-        print("Connecting")
-        runner = ApplicationRunner('ws://{}:8080/ws'.format(args.server_ip), 'realm1')
-        # poor man's auto reconnect
+@component.on_join
+@inlineCallbacks
+def join(self, details):
+    logged_in = False
+    while not logged_in:
         try:
-            runner.run(MyComponent)
-        except ConnectionRefusedError:
-            print("Could not connect to server")
-        time.sleep(10)
-        asyncio.set_event_loop(asyncio.new_event_loop())
+            # login to gameserver
+            yield self.call(u'server.login', u(args.player_id))
+            logged_in = True
+        except ApplicationError:
+            yield sleep(5)
+    print("Logged in to server")
+
+    #---------- RPC -----------
+
+    # callback function for when it's our turn
+    logic_module = importlib.import_module('logic.' + args.logic)
+    def turn(stash, gameboard):
+        importlib.reload(logic_module)
+        return {u(key): value for key, value in logic_module.turn(stash, gameboard).items()}
+    yield self.register(turn, u(args.player_id + '.turn'))
+
+    #---------- Pub/Sub -----------
+
+    # callback function for server messages
+    def server_console(message):
+        print("Server says: {}".format(message))
+    yield self.subscribe(server_console, u'server.console')
+
+
+# handle server shutdown
+@component.on_disconnect
+def disconnect(self, was_clean):
+    print("Server shutdown or connection lost")
+
+
+run(component)
