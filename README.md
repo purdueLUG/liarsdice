@@ -5,11 +5,13 @@ participants program bots to compete in a game of [liar's dice](https://en.wikip
 
 ## Installation and Setup
 Example client setup
+
     pip install -r requirements_client.txt
     cd example_bot
     python example_bot.py [server ip] [botname]
 
 Server setup
+
     pip install -r requirements_server.txt
     crossbar start
 
