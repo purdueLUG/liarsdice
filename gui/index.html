@@ -12,8 +12,7 @@
 
         <script src="/libs/bootstrap/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     </head>
-    <!-- <body style="white-space: pre;"> -->
-    <body style="margin: 20px">
+    <body>
         <table id="gameboard" class="table">
             <thead>
                 <tr>
@@ -28,15 +27,15 @@
         </table>
         <div class="row">
             <div class="col-sm-6">
-                <textarea id="log" readonly style="width: 90%; max-height: 300px;">
+                <textarea id="log" readonly >
                 </textarea>
             </div>
             <div class="col-sm-6">
-                <p style="white-space:pre;" id="dump"></p>
+                <p id="json_dump"></p>
             </div>
         </div>
         <div class="row">
-            <div style="width:600px; margin:auto">
+            <div id="dice_gif">
                 <img src="/dice/dice.gif">
             </div>
         </div>

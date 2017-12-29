@@ -49,7 +49,7 @@ function alert_error(text) {
 function subscribe_gameboard(gb) {
     // console.log("received event for gameboard");
     gameboard = gb[0];
-    $("#dump").html(JSON.stringify(gameboard, null, '\t'));
+    $("#json_dump").html(JSON.stringify(gameboard, null, '\t'));
     var table = $("#gameboard");
     $("#gameboard tbody tr").remove()
     $("#gameboard tbody td").remove()

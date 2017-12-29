@@ -1,3 +1,19 @@
+body {
+    margin: 20px;
+}
 .dice {
     margin-right: 10px;
+}
+
+#log {
+    width: 90%;
+}
+
+#json_dump {
+    white-space: pre;
+}
+
+#dice_gif {
+    width: 600px;
+    margin: auto;
 }

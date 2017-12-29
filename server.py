@@ -228,8 +228,8 @@ class AppSession(ApplicationSession):
                 yield self.publish_gameboard()
                 log.info("----------------------- b5")
 
-                # ask for bet:
                 try:
+                    # ask for bet:
                     log.info("----------------------- b6")
                     player_response = yield self.call(self.current_player.player_id+'.turn',
                                                       self.current_player.stash,
@@ -252,8 +252,8 @@ class AppSession(ApplicationSession):
                           'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
                         log.info("----------------------- c8")
-                        if (not self.previous_player or
-                            self.active_players_cycle.count(self.previous_bet['value']) >= self.previous_bet['num_dice']):
+                        if (self.previous_player or
+                            self.active_players_cycle.count(self.previous_bet['value']) < self.previous_bet['num_dice']):
                             log.info("----------------------- c9")
                             # challenge lost
                             self.publish_console(self.current_player.player_id + " lost challenge")
