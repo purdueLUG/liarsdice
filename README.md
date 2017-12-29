@@ -7,8 +7,7 @@ participants program bots to compete in a game of [liar's dice](https://en.wikip
 Example client setup
 
     pip install -r requirements_client.txt
-    cd example_bot
-    python example_bot.py [server ip] [botname]
+    python client.py [server ip] [botname] --logic example
 
 Server setup
 
@@ -16,13 +15,14 @@ Server setup
     crossbar start
 
 ## Running your own bot
-Modify `bots/logic/example.py` with your bot's custom logic.  Some basic example code is already provided.  This code is called every time it is your bots turn.  See below for some example input.
 
-Connect to the master server like so:
+1.  Copy `logic/example.py` to `logic/mylogic.py`.
+2.  Modify `mylogic.py` with your bot's custom logic.  This code is called every time it is your bot's turn.  See below for some example input.
+3.  Connect to the master server:
 
-    python3 bot.py diode.purduelug.org [bot_name] --logic example
+    python client.py liarsdice.purduelug.org [bot_name] --logic mylogic
     
-You can view the game's GUI [here](http://diode.purduelug.org:8080)
+You can view the game's GUI [here](http://liarsdice.purduelug.org)
       
 ## Arguments example
 #### stash
@@ -49,6 +49,7 @@ This is a dictionary containing public information about the gameboard.  The mos
 - `active_players` - a list of all players that still have dice
 - `winning_player` - the winner of the round
 - `current_player` - the player whose turn it is
-- `previous_player` - the previous player who might be challenged by the current player
+- `previous_player` - the previous player who might be challenged by the current player. `None` if your bot is the first in the current round
 - `stashes` - a dictionary of stashes, all stashes are hidden (None) until the end of the round
 - `session_id` - used by the GUI for bookkeeping purposes
+- `wins` - a dictionary of how many wins each player has
