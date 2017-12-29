@@ -90,6 +90,7 @@ class AppSession(ApplicationSession):
     winning_player       = None
     active_players_cycle = PlayerList([])
     reveal_stashes       = False
+    last_wins            = collections.deque([], 50)
 
     def assemble_gameboard(self):
 
@@ -130,11 +131,16 @@ class AppSession(ApplicationSession):
 
     @inlineCallbacks
     def onJoin(self, details):
+        def foo(x):
+            log.info('x:{}'.format(x))
+            log.info('type(x):{}'.format(type(x)))
+        yield self.register(foo, 'python3.foo')
 
         log.info('Server started')
 
         # authentication all bot actions
         def action_authorize(session, uri, action, options):
+            return {"allow": True, "disclose": True, "cache": True}
             log.info('uri:{}'.format(uri))
             log.info('action:{}'.format(action))
             # log.info('session:{}'.format(str(session)))
@@ -172,13 +178,15 @@ class AppSession(ApplicationSession):
 
         # register remote procedure call named reg
         def login(player_id, session_details=None):
+            # crossbar turns unicode strings into bytes.  cast it back to string
+            player_id = str(player_id)
             # if the player id is already taken, return False
             if player_id in [p.player_id for p in self.players]:
                 log.info("{} tried to login, but the player_id is taken".format(player_id))
                 return False
             self.players.append(Player(player_id, session_details.caller))
             self.publish_gameboard()
-            log.info("{} successfully logged in".format(player_id))
+            log.info("{} successfully logged in type {}".format(player_id, type(player_id)))
             return True
 
         log.info("----------------------- foo")
@@ -234,6 +242,7 @@ class AppSession(ApplicationSession):
                         isinstance(player_response['num_dice'], int) and
                         isinstance(player_response['value'], int) and
                         player_response['num_dice'] > self.previous_bet['num_dice']):
+                        log.info("----------------------- c7")
                         self.previous_bet = player_response
 
                         log.info("----------------------- c1")
@@ -241,15 +250,22 @@ class AppSession(ApplicationSession):
                     elif (isinstance(player_response, dict) and
                           'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
+                        log.info("----------------------- c8")
                         if (not self.previous_player or
                             self.active_players_cycle.count(self.previous_bet['value']) >= self.previous_bet['num_dice']):
+                            log.info("----------------------- c9")
                             # challenge lost
                             self.publish_console(self.current_player.player_id + " lost challenge")
                             self.active_players_cycle.penalize(self.current_player)
+                            log.info("----------------------- c3")
                         else:
+                            log.info("----------------------- c10")
                             # challenge won
                             self.publish_console(self.current_player.player_id + " won challenge")
                             self.active_players_cycle.penalize(self.previous_player)
+                            log.info("----------------------- c4")
+
+                        log.info("----------------------- c5")
                         # reveal stashes
                         self.reveal_stashes = True
                         yield self.publish_gameboard()
@@ -269,9 +285,11 @@ class AppSession(ApplicationSession):
                 # error when calling player turn - remove them from the game completely
                 except ApplicationError as e:
                     log.info("----------------------- b9")
+                    log.error(e)
                     self.publish_console("{} had an error".format(self.current_player.player_id))
                     self.active_players_cycle.penalize(self.current_player)
-                except TimeoutError:
+                except TimeoutError as e:
+                    log.error(e)
                     log.info("----------------------- b8")
                     self.publish_console("{} took too long to respond".format(self.current_player.player_id))
                     self.active_players_cycle.penalize(self.current_player)
@@ -288,6 +306,7 @@ class AppSession(ApplicationSession):
                     self.last_wins.append(self.winning_player.player_id)
                     yield self.publish_gameboard()
                     self.reveal_stashes = False
+                    log.info("----------------------- c6")
                     break
                 log.info("----------------------- b4")
 
