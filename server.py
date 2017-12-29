@@ -75,9 +75,7 @@ class PlayerList:
     def count(self, value):
         num_dice = 0
         for p in self.players:
-            for d in p.stash:
-                if d == value:
-                    num_dice += 1
+            num_dice += p.stash.count(value)
 
         return num_dice
 
@@ -252,20 +250,19 @@ class AppSession(ApplicationSession):
                           'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
                         log.info("----------------------- c8")
-                        self.publish_console("bet was {} dice.  I counted {}".format(self.previous_bet['num_dice'], self.active_players_cycle.count(self.previous_bet['value'])))
-                        if (not self.previous_player or
+                        if (self.previous_player and
                             self.active_players_cycle.count(self.previous_bet['value']) < self.previous_bet['num_dice']):
-                            log.info("----------------------- c9")
-                            # challenge lost
-                            self.publish_console(self.current_player.player_id + " lost challenge")
-                            self.active_players_cycle.penalize(self.current_player)
-                            log.info("----------------------- c3")
-                        else:
                             log.info("----------------------- c10")
                             # challenge won
                             self.publish_console(self.current_player.player_id + " won challenge")
                             self.active_players_cycle.penalize(self.previous_player)
                             log.info("----------------------- c4")
+                        else:
+                            log.info("----------------------- c9")
+                            # challenge lost
+                            self.publish_console(self.current_player.player_id + " lost challenge")
+                            self.active_players_cycle.penalize(self.current_player)
+                            log.info("----------------------- c3")
 
                         log.info("----------------------- c5")
                         # reveal stashes
