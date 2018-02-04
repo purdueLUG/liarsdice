@@ -75,9 +75,7 @@ class PlayerList:
     def count(self, value):
         num_dice = 0
         for p in self.players:
-            for d in p.stash:
-                if d == value:
-                    num_dice += 1
+            num_dice += p.stash.count(value)
 
         return num_dice
 
@@ -109,15 +107,18 @@ class AppSession(ApplicationSession):
         }
         return gameboard
 
+    # send updated gameboard to bots
     def publish_gameboard(self):
         gameboard = self.assemble_gameboard()
         self.publish('server.gameboard', gameboard)
 
+    # send human readable text to bots
     def publish_console(self, message):
         self.publish('server.console', message)
 
-    def publish_winner(self, playerID):
-        self.publish('server.gameboard', playerID)
+    # tell bots when round is over
+    def publish_round_end(self, message):
+        self.publish('server.round_end' )
 
     # remove player from players and active_players_cycle
     def client_left(self, session_id):
@@ -155,14 +156,14 @@ class AppSession(ApplicationSession):
                     allow = True
                 else:
                     log.info("bot with session id {} is already logged in".format(session['session']))
-                # allow access to publication history
+                # FIXME: allow access to publication history here
 
             # force bots to register turn function with format player_id.turn
             elif action == 'register':
                 for p in self.players:
                     if session['session'] == p.session_id:
                         break
-                if uri.lstrip(p.player_id) == '.turn':
+                if uri.lstrip(p.player_id) in ('.turn', '.round_end'):
                     allow = True
                 else:
                     log.info("bot with session_id {} tried to register invalid turn function {}".format(session['session'], uri))
@@ -252,26 +253,29 @@ class AppSession(ApplicationSession):
                           'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
                         log.info("----------------------- c8")
-                        self.publish_console("bet was {} dice.  I counted {}".format(self.previous_bet['num_dice'], self.active_players_cycle.count(self.previous_bet['value'])))
-                        if (not self.previous_player or
+                        self.publish_console("The bet was for {} dice.  I counted {}".format(self.previous_bet['num_dice'], self.active_players_cycle.count(self.previous_bet['value'])))
+                        if (self.previous_player and
                             self.active_players_cycle.count(self.previous_bet['value']) < self.previous_bet['num_dice']):
-                            log.info("----------------------- c9")
-                            # challenge lost
-                            self.publish_console(self.current_player.player_id + " lost challenge")
-                            self.active_players_cycle.penalize(self.current_player)
-                            log.info("----------------------- c3")
-                        else:
                             log.info("----------------------- c10")
                             # challenge won
                             self.publish_console(self.current_player.player_id + " won challenge")
                             self.active_players_cycle.penalize(self.previous_player)
                             log.info("----------------------- c4")
+                        else:
+                            log.info("----------------------- c9")
+                            # challenge lost
+                            self.publish_console(self.current_player.player_id + " lost challenge")
+                            self.active_players_cycle.penalize(self.current_player)
+                            log.info("----------------------- c3")
 
                         log.info("----------------------- c5")
                         # reveal stashes
                         self.reveal_stashes = True
                         self.previous_player = None
                         yield self.publish_gameboard()
+                        log.info("----------------------- c11")
+                        yield self.publish_round_end()
+                        log.info("----------------------- c12")
                         # need to reset this for next round
                         self.previous_bet = {'num_dice': 0, 'value': 0}
                         self.active_players_cycle.roll()
@@ -290,13 +294,16 @@ class AppSession(ApplicationSession):
                     log.info("----------------------- b9")
                     log.error(e)
                     self.publish_console("{} had an error".format(self.current_player.player_id))
+                    log.info("----------------------- b10")
                     self.active_players_cycle.penalize(self.current_player)
+                    log.info("----------------------- b11")
                 except TimeoutError as e:
                     log.error(e)
                     log.info("----------------------- b8")
                     self.publish_console("{} took too long to respond".format(self.current_player.player_id))
                     self.active_players_cycle.penalize(self.current_player)
                 log.info("----------------------- b2")
+
 
                 # player win
                 if len(self.active_players_cycle) == 1:
