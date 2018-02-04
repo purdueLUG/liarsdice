@@ -53,3 +53,13 @@ This is a dictionary containing public information about the gameboard.  The mos
 - `stashes` - a dictionary of stashes, all stashes are hidden (None) until the end of the round
 - `session_id` - used by the GUI for bookkeeping purposes
 - `wins` - a dictionary of how many wins each player has
+
+#### state
+This is an empty object if you want to have a bot that can maintain state between turns.  You can use it like so:
+
+      def init(state):
+          state.my_variable = 0
+          
+      def turn(state, stash, gameboard):
+          ...
+          state.my_variable += 1
