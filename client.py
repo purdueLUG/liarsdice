@@ -8,7 +8,8 @@ from autobahn.twisted.util import sleep
 from twisted.internet.defer import inlineCallbacks
 from twisted.python import log
 import sys
-import importlib
+from importlib import import_module
+from six.moves import reload_module
 import logic
 import time
 # do bytestring to unicode conversion in python2. no effect in python3
@@ -37,7 +38,9 @@ component = Component(
 @component.on_join
 @inlineCallbacks
 def join(self, details):
+
     logged_in = False
+
     while not logged_in:
         try:
             # login to gameserver
@@ -47,18 +50,33 @@ def join(self, details):
             yield sleep(5)
     print("Logged in to server")
 
+    logic_module = import_module('logic.' + args.logic)
+
+    # empty class for storing state
+    class empty(object):
+        # initialize bot state
+        def __init__(self):
+            logic_module.init(self)
+
+    state = empty()
+
     #---------- RPC -----------
 
     # callback function for when it's our turn
-    logic_module = importlib.import_module('logic.' + args.logic)
     def turn(stash, gameboard):
-        importlib.reload(logic_module)
-        return {u(key): value for key, value in logic_module.turn(stash, gameboard).items()}
+        reload_module(logic_module)
+        return {u(key): value for key, value in logic_module.turn(state, stash, gameboard).items()}
     yield self.register(turn, u(args.player_id + '.turn'))
 
     #---------- Pub/Sub -----------
 
-    # callback function for server messages
+    # subscription for round end
+    def round_end(gameboard):
+        reload_module(logic_module)
+        return {u(key): value for key, value in logic_module.round_end(state, gameboard).items()}
+    yield self.subscribe(round_end, u'server.round_end')
+
+    # subscription for server messages
     def server_console(message):
         print("Server says: {}".format(message))
     yield self.subscribe(server_console, u'server.console')
@@ -68,6 +86,5 @@ def join(self, details):
 @component.on_disconnect
 def disconnect(self, was_clean):
     print("Server shutdown or connection lost")
-
 
 run(component)

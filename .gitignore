@@ -4,7 +4,7 @@
 .crossbar/node.pid
 .crossbar/server.log
 
-bots/logic
+logic
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
