@@ -6,7 +6,7 @@ from collections import Counter
 
 # to make bet, returned value must be dict of form {'num_dice':num_dice, 'value':value}
 # to make challenge, {'challenge': True}
-def turn(stash, gameboard):
+def turn(state, stash, gameboard):
 
     num_dice = gameboard['previous_bet']['num_dice'] + 1
     most_common = Counter(stash).most_common(1)[0]
