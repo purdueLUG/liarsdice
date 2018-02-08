@@ -38,7 +38,7 @@ This is a dictionary containing public information about the gameboard.  The mos
         'wins': {'hank':1, 'peggy':5, 'bobby':2 }, 
         'previous_bet': { 'num_dice':4, 'value':4 }, 
         'stash_sizes': {'hank':5, 'peggy':3}, 
-        'winning_player': 'hank', 
+        'game_winner: 'hank',
         'current_player':'hank', 
         'previous_player':'peggy', 
         'stashes': {'hank':None, 'peggy':None},
@@ -47,7 +47,8 @@ This is a dictionary containing public information about the gameboard.  The mos
     
 - `player_list` - a list of all currently connected players
 - `active_players` - a list of all players that still have dice
-- `winning_player` - the winner of the round
+- `game_winner` - the winner of the game (last player with dice left)
+- `round_winner` - the winner of the round (whoever wins a challenge)
 - `current_player` - the player whose turn it is
 - `previous_player` - the previous player who might be challenged by the current player. `None` if your bot is the first in the current round
 - `stashes` - a dictionary of stashes, all stashes are hidden (None) until the end of the round
