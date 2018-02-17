@@ -62,6 +62,12 @@ This is an empty object if you want to have a bot that can maintain state betwee
       def init(state):
           state.my_variable = 0
           
+      def game_start(state, gameboard):
+          pass
+          
+      def game_end(state, gamebaord):
+          pass
+          
       def round_end(state, gameboard):
           state.my_variable -= 1
           

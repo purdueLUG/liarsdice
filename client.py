@@ -72,6 +72,13 @@ def join(self, details):
 
     #---------- Pub/Sub -----------
 
+    # subscription for game start
+    def game_start(gameboard):
+        reload_module(logic_module)
+        if hasattr(logic_module, 'game_start'):
+            logic_module.game_start(state, gameboard)
+    yield self.subscribe(game_start, u'server.game_start')
+
     # subscription for game end
     def game_end(gameboard):
         reload_module(logic_module)

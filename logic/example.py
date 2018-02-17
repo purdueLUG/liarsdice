@@ -5,8 +5,8 @@ from random import randint
 
 # See the README for a description of state, stash, and gameboard
 
-# put any state initialization code here.  called when bot is launched
-def init(state):
+# put any state initialization code here.  called when game is about to start
+def game_start(state, gameboard):
     state.my_wins = 0
 
 # update your state variables here when the game ends
