@@ -57,12 +57,18 @@ class PlayerList:
         return len(self.players)
 
     def remove(self, player):
+        log.debug("----------------------- b16")
         self.players.remove(player)
+        log.debug("----------------------- b17")
 
     def penalize(self, player):
+        log.debug("----------------------- b12")
         player.stash_size -=1
+        log.debug("----------------------- b13")
         if player.stash_size <= 0:
+            log.debug("----------------------- b14")
             self.remove(player)
+            log.debug("----------------------- b15")
 
     def roll(self, reset=False):
         log.debug("----------------------- a4")
@@ -85,7 +91,8 @@ class AppSession(ApplicationSession):
     previous_bet         = {'num_dice': 0, 'value': 0}
     previous_player      = None
     current_player       = None
-    winning_player       = None
+    game_winner          = None
+    round_winner         = None
     active_players_cycle = PlayerList([])
     reveal_stashes       = False
     last_wins            = collections.deque([], 50)
@@ -102,7 +109,8 @@ class AppSession(ApplicationSession):
             'active_players'  : [p.player_id for p in self.active_players_cycle.players],
             'wins'            : {p.player_id: p.wins for p in self.players},
             'last_wins'       : {p.player_id: self.last_wins.count(p.player_id) for p in self.players},
-            'winning_player'  : self.winning_player.player_id if self.winning_player else None,
+            'game_winner'     : self.game_winner.player_id if self.game_winner else None,
+            'round_winner'    : self.round_winner.player_id if self.round_winner else None,
             'session_ids'     : {p.player_id: p.session_id for p in self.players},
         }
         return gameboard
@@ -116,9 +124,26 @@ class AppSession(ApplicationSession):
     def publish_console(self, message):
         self.publish('server.console', message)
 
+    # tell bots when game is about to start
+    def publish_game_start(self):
+        log.debug("----------------------- c17")
+        gameboard = self.assemble_gameboard()
+        self.publish('server.game_start', gameboard)
+        log.debug("----------------------- c18")
+
+    # tell bots when game is over
+    def publish_game_end(self):
+        log.debug("----------------------- c15")
+        gameboard = self.assemble_gameboard()
+        self.publish('server.game_end', gameboard)
+        log.debug("----------------------- c16")
+
     # tell bots when round is over
-    def publish_round_end(self, message):
-        self.publish('server.round_end' )
+    def publish_round_end(self):
+        log.debug("----------------------- c13")
+        gameboard = self.assemble_gameboard()
+        self.publish('server.round_end', gameboard)
+        log.debug("----------------------- c14")
 
     # remove player from players and active_players_cycle
     def client_left(self, session_id):
@@ -163,13 +188,14 @@ class AppSession(ApplicationSession):
                 for p in self.players:
                     if session['session'] == p.session_id:
                         break
-                if uri.lstrip(p.player_id) in ('.turn', '.round_end'):
+                if uri.lstrip(p.player_id) in ('.turn'):
                     allow = True
                 else:
                     log.info("bot with session_id {} tried to register invalid turn function {}".format(session['session'], uri))
             # bots may only subscribe to server gameboard and console publications
             elif action == 'subscribe':
-                if uri == 'server.gameboard' or uri == 'server.console':
+                if uri in ('server.gameboard', 'server.console', 'server.game_start'
+                           'server.game_end', 'server.round_end'):
                     allow = True
                 else:
                     log.info("bot with session_id {} is not allowed to subscribe to {}".format(session['session'], uri))
@@ -204,11 +230,11 @@ class AppSession(ApplicationSession):
         while True:
 
             # setup phase
-            self.winning_player = None
+            self.game_winner = None
             self.current_player = None
             self.previous_player = None
             # we should sleep until len(self.players) > 2
-            yield sleep(5)
+            yield sleep(1)
 
             log.debug("----------------------- a1")
             shuffle(self.players)
@@ -221,12 +247,13 @@ class AppSession(ApplicationSession):
             log.debug("----------------------- a3")
 
             log.debug("----------------------- a")
+            self.publish_game_start()
             # loop players endlessly until 0 or 1 players left
             for self.current_player in self.active_players_cycle:
                 log.debug("----------------------- b")
 
                 # publish the game board
-                yield self.publish_gameboard()
+                self.publish_gameboard()
                 log.debug("----------------------- b5")
 
                 try:
@@ -253,33 +280,36 @@ class AppSession(ApplicationSession):
                           'challenge' in player_response.keys() and
                         player_response['challenge'] == True):
                         log.debug("----------------------- c8")
-                        self.publish_console("The bet was for {} dice.  I counted {}".format(self.previous_bet['num_dice'], self.active_players_cycle.count(self.previous_bet['value'])))
+                        # self.publish_console("The bet was for {} dice.  I counted {}".format(self.previous_bet['num_dice'], self.active_players_cycle.count(self.previous_bet['value'])))
                         if (self.previous_player and
                             self.active_players_cycle.count(self.previous_bet['value']) < self.previous_bet['num_dice']):
                             log.debug("----------------------- c10")
                             # challenge won
                             self.publish_console(self.current_player.player_id + " won challenge")
+                            self.round_winner = self.current_player
                             self.active_players_cycle.penalize(self.previous_player)
                             log.debug("----------------------- c4")
                         else:
                             log.debug("----------------------- c9")
                             # challenge lost
                             self.publish_console(self.current_player.player_id + " lost challenge")
+                            self.round_winner = self.previous_player
                             self.active_players_cycle.penalize(self.current_player)
                             log.debug("----------------------- c3")
 
                         log.debug("----------------------- c5")
                         # reveal stashes
                         self.reveal_stashes = True
-                        self.previous_player = None
-                        yield self.publish_gameboard()
+                        self.publish_gameboard()
                         log.debug("----------------------- c11")
-                        yield self.publish_round_end()
+                        self.publish_round_end()
                         log.debug("----------------------- c12")
                         # need to reset this for next round
+                        self.previous_player = None
                         self.previous_bet = {'num_dice': 0, 'value': 0}
+                        self.round_winner = None
                         self.active_players_cycle.roll()
-                        yield sleep(.1)
+                        # yield sleep(.1)
                         self.reveal_stashes = False
                         log.debug("----------------------- c2")
 
@@ -309,20 +339,20 @@ class AppSession(ApplicationSession):
                 if len(self.active_players_cycle) == 1:
                     log.debug("----------------------- b3")
                     self.reveal_stashes = True
-                    yield self.publish_gameboard()
-                    self.winning_player = self.active_players_cycle.players[0]
-                    self.publish_console("{} won".format(self.winning_player.player_id))
-                    self.winning_player.wins += 1
-                    self.last_wins.append(self.winning_player.player_id)
-                    yield self.publish_gameboard()
+                    self.game_winner = self.active_players_cycle.players[0]
+                    self.publish_console("{} won".format(self.game_winner.player_id))
+                    self.game_winner.wins += 1
+                    self.last_wins.append(self.game_winner.player_id)
+                    self.publish_gameboard()
+                    self.publish_game_end()
                     self.reveal_stashes = False
                     log.debug("----------------------- c6")
                     break
                 log.debug("----------------------- b4")
 
 
-                yield sleep(.1)
-                yield self.publish_gameboard()
+                # yield sleep(.1)
+                self.publish_gameboard()
 
                 log.debug("----------------------- b7")
             log.debug("----------------------- d")
