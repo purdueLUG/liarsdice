@@ -5,13 +5,22 @@ from random import randint
 
 # See the README for a description of state, stash, and gameboard
 
-# put any state initialization code here.  called when bot is launched
-def init(state):
-    pass
+# put any state initialization code here.  called when game is about to start
+def game_start(state, gameboard):
+    state.my_wins = 0
+
+# update your state variables here when the game ends
+def game_end(state, gameboard):
+    # if we are the winner of the game
+    if gameboard['game_winner'] == state.player_id:
+        state.my_wins += 1
+        print('I now have {} wins'.format(state.my_wins))
 
 # update your state variables here when the round ends
 def round_end(state, gameboard):
-    pass
+    # if we are the winner of the round
+    if gameboard['round_winner'] == state.player_id:
+        print("I won the round!")
 
 # to make bet, returned value must be dict of form {'num_dice':num_dice, 'value':value}
 # to make challenge, {'challenge': True}

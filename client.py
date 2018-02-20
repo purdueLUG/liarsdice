@@ -56,7 +56,9 @@ def join(self, details):
     class empty(object):
         # initialize bot state
         def __init__(self):
-            logic_module.init(self)
+            self.player_id = args.player_id
+            if hasattr(logic_module, 'init'):
+                logic_module.init(self)
 
     state = empty()
 
@@ -70,10 +72,25 @@ def join(self, details):
 
     #---------- Pub/Sub -----------
 
+    # subscription for game start
+    def game_start(gameboard):
+        reload_module(logic_module)
+        if hasattr(logic_module, 'game_start'):
+            logic_module.game_start(state, gameboard)
+    yield self.subscribe(game_start, u'server.game_start')
+
+    # subscription for game end
+    def game_end(gameboard):
+        reload_module(logic_module)
+        if hasattr(logic_module, 'game_end'):
+            logic_module.game_end(state, gameboard)
+    yield self.subscribe(game_end, u'server.game_end')
+
     # subscription for round end
     def round_end(gameboard):
         reload_module(logic_module)
-        return {u(key): value for key, value in logic_module.round_end(state, gameboard).items()}
+        if hasattr(logic_module, 'round_end'):
+            logic_module.round_end(state, gameboard)
     yield self.subscribe(round_end, u'server.round_end')
 
     # subscription for server messages
