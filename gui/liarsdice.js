@@ -56,14 +56,17 @@ function subscribe_gameboard(gb) {
 
     console.log(gameboard.player_list)
     gameboard.player_list.forEach(function (player_id, index) {
-        if (player_id == gameboard.winning_player) {
-            tr_class = "success";
-        }
-        else if (player_id == gameboard['current_player']){
-            tr_class = "active";
-        }
-        else if (gameboard.active_players.indexOf(player_id) > -1) {
-            tr_class = "";
+        console.log("foo");
+        if (gameboard.active_players.indexOf(player_id) > -1){
+            if (player_id == gameboard.round_winner || player_id == gameboard.game_winner) {
+                tr_class = "success";
+            }
+            else if (player_id == gameboard['current_player']){
+                tr_class = "active";
+            }
+            else {
+                tr_class = "";
+            }
         }
         else {
             tr_class = "danger";
