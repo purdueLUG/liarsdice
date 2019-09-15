@@ -72,22 +72,21 @@ function subscribe_gameboard(gb) {
             tr_class = "danger";
         }
 
+        dice_html = "<td>";
         // if stash for a certain player is known, show their stash
         if(gameboard.stashes[player_id]){
-            dice_html = "<td>"
             gameboard.stashes[player_id].forEach(function (dice){
                 dice_html += "<img class=\"dice\" src=/dice/" + dice + ".png>"
             });
-            dice_html += "</td>";
         }
         // otherwise, fill in with grey boxes
         else {
             console.log("no stash");
-            dice_html = "<td>" +
-                "<img class=\"dice\" src=/dice/unknown.png>".repeat(gameboard.stash_sizes[player_id]) +
-                "</td>";
+            dice_html += "<img class=\"dice\" src=/dice/unknown.png>".repeat(gameboard.stash_sizes[player_id]);
 
         }
+        dice_html += "<img class=\"dice\" src=/dice/blank.png>";
+        dice_html += "</td>";
         $('#gameboard tbody').append(['<tr class="', tr_class, '">',
                                       '<td>', index, '</td>',
                                       '<td>', player_id, '</td>',
