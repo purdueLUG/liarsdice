@@ -58,7 +58,11 @@ class PlayerList:
 
     def remove(self, player):
         log.debug("----------------------- b16")
-        self.players.remove(player)
+        # FIXME - sometimes this fails when a player errors out
+        try:
+            self.players.remove(player)
+        except:
+            pass
         log.debug("----------------------- b17")
 
     def penalize(self, player):
