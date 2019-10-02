@@ -19,7 +19,7 @@ Server setup
 2.  Modify `mylogic.py` with your bot's custom logic.  This code is called every time it is your bot's turn.  See below for some example input.
 3.  Connect to the master server:
 
-        python client.py dice.evanw.org.org [bot_name] --logic mylogic
+        python client.py dice.evanw.org [bot_name] --logic mylogic
     
 You can view the game's GUI [here](http://dice.evanw.org)
       

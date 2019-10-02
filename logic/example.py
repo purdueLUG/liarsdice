@@ -28,6 +28,10 @@ def turn(state, stash, gameboard):
 
     # challenge if we're not the first player and if the previous bet is over 5
     if gameboard['previous_player'] and gameboard['previous_bet']['num_dice'] > 5:
+            print('---------------------------------------------------------------------------------')
+            print('previous_bet:', gameboard['previous_bet'])
+            print('stash_sizes:', gameboard['stash_sizes'])
+            print('stash:', stash)
             return {'challenge': True}
     # otherwise, make a bet
     num_dice = gameboard['previous_bet']['num_dice'] + 1
